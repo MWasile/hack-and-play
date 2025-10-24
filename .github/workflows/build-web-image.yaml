@@ -49,5 +49,5 @@ jobs:
 
       - name: Tag latest (only master)
         run: |
-          docker build -f frontend/Dockerfile -t rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:latest backend
+          docker build -f frontend/Dockerfile -t rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:latest frontend
           docker push rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:latest
