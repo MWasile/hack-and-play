@@ -1,0 +1,9 @@
+name: "hack-and-play"
+
+include:
+  - ./backend/docker-compose.yaml
+  - ./frontend/docker-compose.yaml
+
+networks:
+  hack_and_play_network:
+    name: hack_and_play_network
