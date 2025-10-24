@@ -12,6 +12,7 @@ interface Props {
   onChange: (v: string) => void
   onSelect: (s: Suggestion) => void
   className?: string
+  autoFocus?: boolean
 }
 
 function useDebounced<T>(val: T, delay = 300) {
@@ -23,10 +24,11 @@ function useDebounced<T>(val: T, delay = 300) {
   return v
 }
 
-export default function AddressAutocomplete({ placeholder, value, onChange, onSelect, className }: Props) {
+export default function AddressAutocomplete({ placeholder, value, onChange, onSelect, className, autoFocus }: Props) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Suggestion[]>([])
   const [active, setActive] = useState(0)
+  const [loading, setLoading] = useState(false)
   const debounced = useDebounced(value, 300)
   const rootRef = useRef<HTMLDivElement | null>(null)
 
@@ -35,8 +37,10 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
     async function run() {
       if (!debounced || debounced.trim().length < 3) {
         setItems([])
+        setLoading(false)
         return
       }
+      setLoading(true)
       const url = new URL('https://nominatim.openstreetmap.org/search')
       url.searchParams.set('format', 'jsonv2')
       url.searchParams.set('addressdetails', '0')
@@ -52,6 +56,7 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
           setActive(0)
         }
       } catch {}
+      finally { if (!cancelled) setLoading(false) }
     }
     run()
     return () => { cancelled = true }
@@ -98,24 +103,33 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => items.length > 0 && setOpen(true)}
+        onFocus={() => (items.length > 0 || loading) && setOpen(true)}
         onKeyDown={onKeyDown}
+        autoFocus={autoFocus}
       />
-      {open && items.length > 0 && (
+      {open && (loading || items.length > 0) && (
         <div className="ac-list">
-          {items.map((it, i) => (
-            <button
-              key={`${it.lat}-${it.lng}-${i}`}
-              type="button"
-              className={`ac-item ${i === active ? 'active' : ''}`}
-              onMouseEnter={() => setActive(i)}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => choose(i)}
-              title={it.label}
-            >
-              <span className="ac-item-title">{it.label}</span>
-            </button>
-          ))}
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={`skel-${i}`} className="ac-item skeleton" aria-hidden>
+                <span className="ac-skel-line" />
+              </div>
+            ))
+          ) : (
+            items.map((it, i) => (
+              <button
+                key={`${it.lat}-${it.lng}-${i}`}
+                type="button"
+                className={`ac-item ${i === active ? 'active' : ''}`}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(i)}
+                title={it.label}
+              >
+                <span className="ac-item-title">{it.label}</span>
+              </button>
+            ))
+          )}
         </div>
       )}
     </div>

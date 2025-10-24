@@ -127,29 +127,40 @@ export default function MapCanvas({
         delete markersRef.current[id]
       }
     })
+
+    // Precompute numbered labels for SPOT markers
+    const spotMarkers = markers.filter((m) => m.id === 'frequent' || m.id.startsWith('frequent-'))
+    const spotLabelById: Record<string, string> = {}
+    spotMarkers.forEach((m, idx) => { spotLabelById[m.id] = `SPOT ${idx + 1}` })
+
     // add/update
     markers.forEach((m) => {
       const key = m.id
       const pos: LatLngExpression = [m.position.lat, m.position.lng]
       const tooltipClass = `marker-tooltip marker-${m.id}`
+      const isSpot = m.id === 'frequent' || m.id.startsWith('frequent-')
+      const effectiveLabel = isSpot ? (spotLabelById[m.id] ?? 'SPOT') : (m.label || '')
+
       if (!markersRef.current[key]) {
         const icon = L.divIcon({
           className: 'custom-marker',
           html: `<div style="background:${m.color ?? '#2e7d32'};width:12px;height:12px;border:2px solid white;border-radius:50%"></div>`
         })
         const mk = L.marker(pos, { icon }).addTo(map)
-        if (m.label) {
-          mk.bindPopup(m.label)
-          mk.bindTooltip(m.label, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
+        // Always show tooltip for SPOTs; for others, show if label provided
+        if (isSpot || m.label) {
+          mk.bindPopup(effectiveLabel)
+          mk.bindTooltip(effectiveLabel, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
         }
         markersRef.current[key] = mk
       } else {
         const mk = markersRef.current[key]
         mk.setLatLng(pos)
-        if (m.label) {
-          if ((mk as any).getPopup && mk.getPopup()) (mk.getPopup() as any).setContent(m.label)
-          if ((mk as any).getTooltip && mk.getTooltip()) (mk.getTooltip() as any).setContent(m.label)
-          else mk.bindTooltip(m.label, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
+        if (isSpot || m.label) {
+          if ((mk as any).getPopup && mk.getPopup()) (mk.getPopup() as any).setContent(effectiveLabel)
+          else mk.bindPopup(effectiveLabel)
+          if ((mk as any).getTooltip && mk.getTooltip()) (mk.getTooltip() as any).setContent(effectiveLabel)
+          else mk.bindTooltip(effectiveLabel, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
         }
       }
     })
@@ -168,15 +179,19 @@ export default function MapCanvas({
 
     // collect available targets
     const targets: Array<{ id: string; label: string; pos: { lat: number; lng: number } }> = []
-    const wanted: Array<{ id: string; label: string }> = [
-      { id: 'home', label: 'HOME' },
-      { id: 'work', label: 'WORK' },
-      { id: 'frequent', label: 'SPOT' },
-    ]
-    for (const w of wanted) {
-      const spec = markers.find((m) => m.id === w.id)
-      if (spec) targets.push({ id: w.id, label: w.label, pos: spec.position })
-    }
+
+    // HOME/WORK first (if present)
+    const homeSpec = markers.find((m) => m.id === 'home')
+    if (homeSpec) targets.push({ id: 'home', label: 'HOME', pos: homeSpec.position })
+    const workSpec = markers.find((m) => m.id === 'work')
+    if (workSpec) targets.push({ id: 'work', label: 'WORK', pos: workSpec.position })
+
+    // Then all SPOTs, numbered in the order provided by markers
+    const spotMarkers = markers.filter((m) => m.id === 'frequent' || m.id.startsWith('frequent-'))
+    spotMarkers.forEach((m, idx) => {
+      targets.push({ id: m.id, label: `SPOT ${idx + 1}`, pos: m.position })
+    })
+
     if (!targets.length) return
 
     const Ctr = L.Control.extend({

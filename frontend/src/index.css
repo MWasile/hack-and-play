@@ -27,15 +27,35 @@ body {
   display: block;
   min-width: 320px;
   min-height: 100vh;
-  /* Prefer modern formats when available */
+}
+
+/* Ensure app content is above the blurred background */
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Blurred background layer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  /* Fallback for older browsers */
+  background-image: url('./assets/bg.png');
+  /* Prefer modern formats when available (browser will pick what it supports) */
   background-image: image-set(
-    url('./assets/bg.avif') type('image/avif'),
-    url('./assets/bg.webp') type('image/webp'),
-    url('./assets/bg.png') type('image/png')
+    url('./assets/bg.avif') 1x,
+    url('./assets/bg.webp') 1x,
+    url('./assets/bg.png') 1x
   );
-  background-size: cover;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+  filter: blur(12px);
+  /* Slight scale to hide blur edge cropping */
+  transform: scale(1.05);
+  z-index: 0;
+  pointer-events: none;
 }
 
 h1 {
