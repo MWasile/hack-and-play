@@ -12,6 +12,7 @@ import Footer from './components/Footer'
 import MapLegend from './components/MapLegend'
 import CommuteSummary from './components/CommuteSummary'
 import { motion } from 'framer-motion'
+import { themeColors } from './styles/theme'
 
 // Tiny geocoder using OpenStreetMap Nominatim (public demo; keep requests light)
 async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -96,7 +97,7 @@ function App() {
   // New: explicit flag for commute analysis (isochrones/route) to control CTA disabled state
   const [isCommuteCalculating, setIsCommuteCalculating] = useState(false)
 
-  // Deterministic color per district name (HSL based on string hash)
+  // Deterministic color per district name using theme palette (no ad-hoc HSL)
   function hashString(s: string): number {
     let h = 5381
     for (let i = 0; i < s.length; i++) {
@@ -105,16 +106,19 @@ function App() {
     }
     return Math.abs(h)
   }
-  function hsl(h: number, s: number, l: number): string {
-    return `hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`
-  }
   function districtColor(name: string | undefined): { stroke: string; fill: string } {
-    if (!name) return { stroke: '#555', fill: 'rgba(120,120,120,0.35)' }
-    const hue = hashString(name.toLowerCase()) % 360
-    return {
-      stroke: hsl(hue, 70, 40),
-      fill: hsl(hue, 65, 55),
-    }
+    if (!name) return { stroke: themeColors.districtFallbackStroke(), fill: themeColors.districtFallbackFill() }
+    const palette = [
+      themeColors.accentViolet(),
+      themeColors.accentSky(),
+      themeColors.accentMagenta(),
+      themeColors.accentDeepPurple(),
+      themeColors.accentOrange(),
+      themeColors.accentCyan(),
+    ]
+    const idx = hashString(name.toLowerCase()) % palette.length
+    const c = palette[idx]
+    return { stroke: c, fill: c }
   }
 
   // Geocode actions
@@ -154,16 +158,16 @@ function App() {
   // Map markers from selected locations – show short labels
   const markers: MarkerSpec[] = useMemo(() => {
     const m: MarkerSpec[] = []
-    if (home) m.push({ id: 'home', position: home, label: 'HOME', color: '#e53935' })
-    if (work) m.push({ id: 'work', position: work, label: 'WORK', color: '#1e88e5' })
+    if (home) m.push({ id: 'home', position: home, label: 'HOME' })
+    if (work) m.push({ id: 'work', position: work, label: 'WORK' })
     if (frequentList.length > 0) {
       // Others first (without center control id)
       const others = frequentList.slice(0, -1)
-      others.forEach((f, i) => m.push({ id: `frequent-${i}`, position: f, label: 'SPOT', color: '#8e24aa' }))
+      others.forEach((f, i) => m.push({ id: `frequent-${i}`, position: f, label: 'SPOT' }))
       const last = frequentList[frequentList.length - 1]
-      m.push({ id: 'frequent', position: last, label: 'SPOT', color: '#8e24aa' })
+      m.push({ id: 'frequent', position: last, label: 'SPOT' })
     } else if (frequent) {
-      m.push({ id: 'frequent', position: frequent, label: 'SPOT', color: '#8e24aa' })
+      m.push({ id: 'frequent', position: frequent, label: 'SPOT' })
     }
     return m
   }, [home, work, frequent, frequentList])
@@ -181,7 +185,7 @@ function App() {
         id: 'analysis-range',
         center: mapCenter,
         radiusMeters: analysisRadius,
-        color: '#1e88e5',
+        color: themeColors.accentWork(),
         fillOpacity: 0,
         opacity: 1,
         weight: 2,
@@ -193,8 +197,8 @@ function App() {
         id: 'green-radius',
         center: home,
         radiusMeters: greenRadius,
-        color: '#2e7d32',
-        fillColor: '#66bb6a',
+        color: themeColors.accentGreen(),
+        fillColor: themeColors.accentGreenFill(),
         opacity: 0.8,
         fillOpacity: 0.15,
       })
@@ -270,7 +274,7 @@ function App() {
         if (!cancelled && iso) {
           setGeoLayers((prev) => [
             ...prev,
-            { id: 'isochrones', data: iso, style: { color: '#ff6f00', weight: 2, fillOpacity: 0.15 } },
+            { id: 'isochrones', data: iso, style: { color: themeColors.accentIso(), weight: 2, fillOpacity: 0.15 } },
           ])
           setCommuteInfo(`Strefa dojazdu ~${commuteMaxMins} min (${commuteMode}).`)
           return
@@ -282,7 +286,7 @@ function App() {
           if (!cancelled && res) {
             setGeoLayers((prev) => [
               ...prev,
-              { id: 'route', data: res.feature, style: { color: '#1e88e5', weight: 4, opacity: 0.9 } },
+              { id: 'route', data: res.feature, style: { color: themeColors.accentWork(), weight: 4, opacity: 0.9 } },
             ])
             setCommuteInfo(`Czas dojazdu do pracy: ~${Math.round(res.durationSec / 60)} min (${commuteMode}).`)
           }
@@ -305,7 +309,7 @@ function App() {
       if (!cancelled && fc) {
         setGeoLayers((prev) => [
           ...prev,
-          { id: 'parks', data: fc, style: { color: '#2e7d32', weight: 1, fillColor: '#66bb6a', fillOpacity: 0.2 } },
+          { id: 'parks', data: fc, style: { color: themeColors.accentGreen(), weight: 1, fillColor: themeColors.accentGreenFill(), fillOpacity: 0.2 } },
         ])
       }
     }
@@ -413,21 +417,105 @@ function App() {
   // Suggest streets near home
   useEffect(() => {
     let cancelled = false
+
+    // Compute squared distance between a point (lng, lat) and a segment AB in degree space
+    function dist2PointToSegment(lng: number, lat: number, ax: number, ay: number, bx: number, by: number) {
+      const ABx = bx - ax
+      const ABy = by - ay
+      const APx = lng - ax
+      const APy = lat - ay
+      const ab2 = ABx * ABx + ABy * ABy
+      if (ab2 === 0) {
+        // A and B are the same point
+        const dx = lng - ax
+        const dy = lat - ay
+        return dx * dx + dy * dy
+      }
+      let t = (APx * ABx + APy * ABy) / ab2
+      t = Math.max(0, Math.min(1, t))
+      const cx = ax + t * ABx
+      const cy = ay + t * ABy
+      const dx = lng - cx
+      const dy = lat - cy
+      return dx * dx + dy * dy
+    }
+
+    function minDist2ToHome(g: Geometry, homeLng: number, homeLat: number): number {
+      if (!g) return Number.POSITIVE_INFINITY
+      if (g.type === 'LineString') {
+        const coords = (g.coordinates as any[]) || []
+        let best = Number.POSITIVE_INFINITY
+        for (let i = 0; i < coords.length - 1; i++) {
+          const [x1, y1] = coords[i] as [number, number]
+          const [x2, y2] = coords[i + 1] as [number, number]
+          const d2 = dist2PointToSegment(homeLng, homeLat, x1, y1, x2, y2)
+          if (d2 < best) best = d2
+        }
+        return best
+      }
+      if (g.type === 'MultiLineString') {
+        let best = Number.POSITIVE_INFINITY
+        for (const line of g.coordinates as any[]) {
+          for (let i = 0; i < line.length - 1; i++) {
+            const [x1, y1] = line[i] as [number, number]
+            const [x2, y2] = line[i + 1] as [number, number]
+            const d2 = dist2PointToSegment(homeLng, homeLat, x1, y1, x2, y2)
+            if (d2 < best) best = d2
+          }
+        }
+        return best
+      }
+      if (g.type === 'Point') {
+        const [x, y] = g.coordinates as [number, number]
+        const dx = x - homeLng
+        const dy = y - homeLat
+        return dx * dx + dy * dy
+      }
+      // For other geometries, do a simple scan of coordinates if present
+      try {
+        const coords: any = (g as any).coordinates
+        if (Array.isArray(coords)) {
+          let best = Number.POSITIVE_INFINITY
+          const scan = (arr: any[]) => {
+            if (typeof arr[0] === 'number') {
+              const [x, y] = arr as [number, number]
+              const dx = x - homeLng
+              const dy = y - homeLat
+              const d2 = dx * dx + dy * dy
+              if (d2 < best) best = d2
+            } else {
+              for (const c of arr) scan(c)
+            }
+          }
+          scan(coords)
+          return best
+        }
+      } catch {}
+      return Number.POSITIVE_INFINITY
+    }
+
     async function run() {
       if (!home) { setSuggestedStreets([]); return }
       const fc = await fetchNearbyNamedStreets({ lat: home.lat, lng: home.lng })
       if (cancelled || !fc) { setSuggestedStreets([]); return }
       type F = Feature & { properties: any }
+
+      // Exclude already highlighted street names from suggestions
+      const highlighted = new Set<string>((highlightedStreets || []).map((s) => s.name.trim().toLowerCase()))
+
+      const allowed = new Set(['primary','secondary','tertiary','residential','living_street','cycleway','trunk'])
       const candidates: Array<{ name: string; d2: number; highway?: string }> = []
       for (const f of (fc.features || []) as F[]) {
-        const name = f.properties?.name || f.properties?.tags?.name
+        const name = (f.properties?.name || f.properties?.tags?.name || '').toString().trim()
+        if (!name) continue
+        const key = name.toLowerCase()
+        if (highlighted.has(key)) continue
         const hwy = f.properties?.highway || f.properties?.tags?.highway
-        if (!name || !hwy) continue
-        if (!['primary','secondary','tertiary','residential','living_street','cycleway','trunk'].includes(String(hwy))) continue
-        const g = f.geometry as any
-        const first = g?.coordinates?.[0]
-        const [lng, lat] = Array.isArray(first) && typeof first[0] === 'number' ? first as [number, number] : [home.lng, home.lat]
-        const d2 = (lat - home.lat) ** 2 + (lng - home.lng) ** 2
+        if (!hwy || !allowed.has(String(hwy))) continue
+        const g = f.geometry as Geometry | undefined
+        if (!g) continue
+        const d2 = minDist2ToHome(g, home.lng, home.lat)
+        if (!Number.isFinite(d2)) continue
         candidates.push({ name, d2, highway: hwy })
       }
       candidates.sort((a, b) => a.d2 - b.d2)
@@ -444,10 +532,10 @@ function App() {
     }
     run()
     return () => { cancelled = true }
-  }, [home])
+  }, [home, highlightedStreets])
 
   // Advanced overlays: helpers for coloring
-  function colorRamp(value: number, colors: [string, string, string] = ['#2e7d32', '#ffd54f', '#e53935']): string {
+  function colorRamp(value: number, colors: [string, string, string] = [themeColors.accentGreenFill(), themeColors.statusMedium(), themeColors.accentHome()]): string {
     const v = Math.max(0, Math.min(1, value))
     // simple 2-stop blend between low-mid and mid-high
     function hexToRgb(hex: string): [number, number, number] {
@@ -488,7 +576,7 @@ function App() {
           data: fc,
           style: (feature: any) => {
             const t = Number(feature?.properties?.tscore ?? 0)
-            const color = colorRamp(t, ['#66bb6a', '#ffd54f', '#e53935'])
+            const color = colorRamp(t, [themeColors.accentGreenFill(), themeColors.statusMedium(), themeColors.accentHome()])
             return { color, fillColor: color, weight: 1, fillOpacity: 0.22, opacity: 0.9 }
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -519,7 +607,7 @@ function App() {
           pointToLayer: (_feat: any, latlng: any) => {
             const score = Number((_feat as any)?.properties?.score ?? 0.5)
             const radius = 6 + score * 10
-            const color = '#ff6ec7'
+            const color = themeColors.accentMagenta()
             return (window as any).L ? (window as any).L.circleMarker(latlng, { radius, color, fillColor: color, fillOpacity: 0.4, weight: 1 }) : L.circleMarker(latlng, { radius, color, fillColor: color, fillOpacity: 0.4, weight: 1 })
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -542,7 +630,7 @@ function App() {
     ;(async () => {
       const data = await fetchDistrictRhythm({ lat: center.lat, lng: center.lng }, analysisRadius)
       if (cancelled) return
-      const colorBy = (t: string) => t === 'biurowa' ? '#42a5f5' : t === 'rodzinna' ? '#ab47bc' : '#8d6e63'
+      const colorBy = (t: string) => t === 'biurowa' ? themeColors.rhythmOffice() : t === 'rodzinna' ? themeColors.rhythmFamily() : themeColors.rhythmOther()
       setGeoLayers((prev) => [
         ...prev,
         {
@@ -580,7 +668,7 @@ function App() {
           data,
           style: (feature: any) => {
             const n = Number(feature?.properties?.noise ?? 0)
-            const color = colorRamp(n, ['#7c4dff', '#ce93d8', '#f48fb1'])
+            const color = colorRamp(n, [themeColors.noiseLow(), themeColors.noiseMid(), themeColors.noiseHigh()])
             return { color, fillColor: color, weight: 1, fillOpacity: 0.18, opacity: 0.9, dashArray: '4 4' }
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -610,7 +698,7 @@ function App() {
           data,
           style: (feature: any) => {
             const b = Number(feature?.properties?.balance ?? 0)
-            const color = colorRamp(b, ['#81c784', '#fff59d', '#ffb74d'])
+            const color = colorRamp(b, [themeColors.balanceLow(), themeColors.balanceMid(), themeColors.balanceHigh()])
             return { color, fillColor: color, weight: 1, fillOpacity: 0.2, opacity: 0.9 }
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -640,7 +728,7 @@ function App() {
           data: data as any,
           style: (feature: any) => {
             const a = Number(feature?.properties?.availability ?? 0)
-            const color = colorRamp(a, ['#4dd0e1', '#80cbc4', '#00acc1'])
+            const color = colorRamp(a, [themeColors.availabilityLow(), themeColors.availabilityMid(), themeColors.availabilityHigh()])
             return { color, fillColor: color, weight: 1, fillOpacity: 0.18, opacity: 0.9 }
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -671,7 +759,7 @@ function App() {
           pointToLayer: (feature: any, latlng: any) => {
             const sev = Number(feature?.properties?.severity ?? 3)
             const t = Math.max(0, Math.min(1, (sev - 1) / 4))
-            const color = colorRamp(t, ['#81c784', '#ffd54f', '#e53935'])
+            const color = colorRamp(t, [themeColors.balanceLow(), themeColors.statusMedium(), themeColors.accentHome()])
             const radius = 4 + t * 8
             return L.circleMarker(latlng, { radius, color, fillColor: color, fillOpacity: 0.45, weight: 1 })
           },
@@ -691,6 +779,56 @@ function App() {
       setHighlightedStreets((prev) => prev.some((p) => p.name.toLowerCase() === name.toLowerCase()) ? prev : [...prev, { name, data: fc }])
     }
   }, [])
+
+  const addStreetsByNames = useCallback(async (names: string[]) => {
+    const normalized = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)))
+    if (normalized.length === 0) return
+    const lowerToOriginal = new Map<string, string>()
+    for (const n of normalized) lowerToOriginal.set(n.toLowerCase(), n)
+    const lowers = Array.from(lowerToOriginal.keys())
+
+    const results = await Promise.allSettled(
+      lowers.map(async (low) => {
+        const orig = lowerToOriginal.get(low) as string
+        const fc = await fetchStreetByNameInWarsaw(orig)
+        if (fc && (fc.features?.length ?? 0) > 0) return { name: orig, data: fc }
+        return null
+      })
+    )
+    const additions = results
+      .map((r) => (r.status === 'fulfilled' ? r.value : null))
+      .filter((x): x is { name: string; data: FeatureCollection } => !!x)
+
+    if (additions.length === 0) return
+
+    setHighlightedStreets((prev) => {
+      const existing = new Set(prev.map((p) => p.name.toLowerCase()))
+      const toAdd = additions.filter((a) => !existing.has(a.name.toLowerCase()))
+      return toAdd.length ? [...prev, ...toAdd] : prev
+    })
+  }, [])
+
+  // Render highlighted streets on the map as a dedicated layer
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'highlighted-streets'))
+    if (highlightedStreets.length === 0) return
+    const merged: FeatureCollection = {
+      type: 'FeatureCollection',
+      features: highlightedStreets.map((s) => s.data.features).flat(),
+    }
+    setGeoLayers((prev) => [
+      ...prev,
+      {
+        id: 'highlighted-streets',
+        data: merged,
+        style: { color: themeColors.accentHome(), weight: 3, opacity: 0.9 },
+        onEachFeature: (feature: any, layer: any) => {
+          const name = feature?.properties?.name || feature?.properties?.tags?.name || 'Ulica'
+          layer.bindTooltip(String(name), { sticky: true, className: 'polygon-tooltip' })
+        },
+      },
+    ])
+  }, [highlightedStreets])
 
   // Compute comparisons whenever Work / frequentList / mode changes
   useEffect(() => {
@@ -817,6 +955,7 @@ function App() {
             if (data) setHighlightedStreets((prev) => [...prev.filter((s) => s.name.toLowerCase() !== name.toLowerCase()), { name, data }])
           }}
           onRemoveHighlightedStreet={(name) => setHighlightedStreets((prev) => prev.filter((s) => s.name !== name))}
+          onAddStreets={addStreetsByNames}
 
           commuteInfo={commuteInfo}
           comparisons={comparisons}
@@ -866,7 +1005,11 @@ function App() {
             <Suggestions
               suggestedDistricts={suggestedDistricts}
               selectedDistricts={selectedDistricts}
-              onToggleDistrict={(name: string) => setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])}
+              onToggleDistrict={(name: string) => {
+                // Ensure districts layer is visible when using chips
+                setShowDistricts(true)
+                setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])
+              }}
               suggestedStreets={suggestedStreets}
               onAddStreetByName={addStreetByName}
             />

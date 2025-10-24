@@ -89,7 +89,7 @@ export default function MapLegend(props: MapLegendProps) {
             <span />
             <span className="legend-chip" style={{ background: 'transparent', boxShadow: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="14" height="14" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                <circle cx="10" cy="10" r="7" fill="none" stroke="#1e88e5" strokeWidth="2" strokeDasharray="4 3" />
+                <circle cx="10" cy="10" r="7" fill="none" stroke="var(--accent-work)" strokeWidth="2" strokeDasharray="4 3" />
               </svg>
             </span>
             <span>🔵 Zasięg analiz na mapie ({analysisRadius} m)</span>
@@ -100,17 +100,17 @@ export default function MapLegend(props: MapLegendProps) {
           <div className="legend-title">Warstwy</div>
           <label className="legend-checkbox">
             <input type="checkbox" checked={analyzeGreen} onChange={(e) => onAnalyzeGreenChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#66bb6a' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-green-fill)' }} />
             <span>🌳 Zielone miejsca</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showDistricts} onChange={(e) => onShowDistrictsChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: 'linear-gradient(90deg, #ff8a80, #ffd180, #ffff8d, #a7ffeb, #80d8ff, #b388ff)' }} />
+            <span className="legend-chip" style={{ background: 'linear-gradient(90deg, var(--chip-heat-1), var(--chip-heat-2), var(--chip-heat-3), var(--chip-heat-4), var(--chip-heat-5), var(--chip-heat-6))' }} />
             <span>🗺️ Dzielnice</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showTraffic} onChange={(e) => onShowTrafficChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#e53935' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-home)' }} />
             <span>🚦 Ruch miejski</span>
           </label>
           {showTraffic && (
@@ -124,32 +124,32 @@ export default function MapLegend(props: MapLegendProps) {
           )}
           <label className="legend-checkbox">
             <input type="checkbox" checked={showSocialLife} onChange={(e) => onShowSocialLifeChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#ff6ec7' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-magenta)' }} />
             <span>🎉 Życie społeczne</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showDistrictRhythm} onChange={(e) => onShowDistrictRhythmChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#42a5f5' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-sky)' }} />
             <span>🏘️ Rytm dzielnicy</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showDigitalNoise} onChange={(e) => onShowDigitalNoiseChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#7c4dff' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-deep-purple)' }} />
             <span>📶 Cyfrowy hałas</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showLifeBalance} onChange={(e) => onShowLifeBalanceChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#ffb74d' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-orange)' }} />
             <span>⚖️ Life Balance</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showSocialAvailability} onChange={(e) => onShowSocialAvailabilityChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#00acc1' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-cyan)' }} />
             <span>🤝 Dostępność społeczna</span>
           </label>
           <label className="legend-checkbox">
             <input type="checkbox" checked={showSafety} onChange={(e) => onShowSafetyChange(e.target.checked)} />
-            <span className="legend-chip" style={{ background: '#e53935' }} />
+            <span className="legend-chip" style={{ background: 'var(--accent-home)' }} />
             <span>🛡️ Bezpieczeństwo</span>
           </label>
         </div>

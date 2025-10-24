@@ -1,96 +1,130 @@
+@import './styles/theme.css';
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+    color-scheme: light; /* force light theme */
+    color: var(--text-strong);
+    background-color: var(--bg-start);
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+    font-weight: 500;
+    color: var(--link);
+    text-decoration: inherit;
 }
+
 a:hover {
-  color: #535bf2;
+    color: var(--link-hover);
 }
 
 body {
-  margin: 0;
-  display: block;
-  min-width: 320px;
-  min-height: 100vh;
+    margin: 0;
+    display: block;
+    min-width: 320px;
+    min-height: 100vh;
+    /* Background color remains on body; image moved to pseudo-element so filters don't affect content */
+    background-color: var(--bg-start);
 }
 
-/* Ensure app content is above the blurred background */
-#root {
-  position: relative;
-  z-index: 1;
-}
-
-/* Blurred background layer */
+/* Paint filtered background image on a fixed layer behind all content */
 body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  /* Fallback for older browsers */
-  background-image: url('./assets/bg.png');
-  /* Prefer modern formats when available (browser will pick what it supports) */
-  background-image: image-set(
-    url('./assets/bg.avif') 1x,
-    url('./assets/bg.webp') 1x,
-    url('./assets/bg.png') 1x
-  );
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(12px);
-  /* Slight scale to hide blur edge cropping */
-  transform: scale(1.05);
-  z-index: 0;
-  pointer-events: none;
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none; /* don't block interactions */
+    /* Fallback first, then vendor-prefixed image-set for Safari, then standard image-set */
+    background-image: url('assets/bg.png');
+    background-image: -webkit-image-set(
+        url('assets/bg.avif') 1x,
+        url('assets/bg.webp') 1x,
+        url('assets/bg.png') 1x
+    );
+    background-image: image-set(
+        url('assets/bg.avif') 1x,
+        url('assets/bg.webp') 1x,
+        url('assets/bg.png') 1x
+    );
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(8px) brightness(1.5) saturate(1.5) hue-rotate(15deg) grayscale(0.5);
+    /* performance hints */
+    will-change: filter;
+    transform: translateZ(0);
+}
+
+/* Ensure app content is above the background */
+#root {
+    position: relative;
+    z-index: 1;
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+    font-size: 3.2em;
+    line-height: 1.1;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+    border-radius: 8px;
+    border: 1px solid rgba(var(--primary-light-rgb), 0.35);
+    padding: 0.6em 1.2em;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: var(--primary-100);
+    color: var(--text-strong);
+    cursor: pointer;
+    transition: border-color 0.25s, box-shadow 0.25s, background-color 0.25s;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+button:hover {
+    border-color: var(--link);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.15);
+}
+
+button:focus,
+button:focus-visible {
+    outline: 4px auto -webkit-focus-ring-color;
+}
+
+.leaflet-tooltip.marker-tooltip.marker-home {
+    background: var(--accent-home);
+    border-color: rgba(var(--neutral-100-rgb), .25);
+    color: var(--neutral-100)
+}
+
+.leaflet-tooltip.marker-tooltip.marker-work {
+    background: var(--accent-work);
+    border-color: rgba(var(--neutral-100-rgb), .25);
+    color: var(--neutral-100)
+}
+
+.leaflet-tooltip.marker-tooltip.marker-frequent {
+    background: var(--accent-frequent);
+    border-color: rgba(var(--neutral-100-rgb), .25);
+    color: var(--neutral-100)
+}
+
+.leaflet-bar.center-control {
+    background: rgba(var(--surface-1-rgb), .9);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--elev-2)
+}
+
+/* Ensure SPOT tooltips with generated ids like frequent-0, frequent-1 are styled */
+.leaflet-tooltip.marker-tooltip[class*="marker-frequent-"] {
+    background: var(--accent-frequent);
+    border-color: rgba(var(--neutral-100-rgb), 0.25);
+    color: var(--neutral-100);
 }

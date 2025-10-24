@@ -62,6 +62,7 @@ interface Props {
   highlightedStreets: HighlightedStreet[]
   onAddStreet: () => void
   onRemoveHighlightedStreet: (name: string) => void
+  onAddStreets?: (names: string[]) => void
 
   // Info
   commuteInfo?: string
@@ -79,7 +80,7 @@ export default function Sidebar(props: Props) {
     considerChild, onConsiderChildChange, childAge, onChildAgeChange,
     hasPets, onHasPetsChange,
     showDistricts, districtNames, selectedDistricts, onToggleDistrict,
-    streetQuery, onStreetQueryChange, highlightedStreets, onAddStreet, onRemoveHighlightedStreet,
+    streetQuery, onStreetQueryChange, highlightedStreets, onAddStreet, onRemoveHighlightedStreet, onAddStreets,
   } = props
 
   const optRef = useRef<HTMLDivElement | null>(null)
@@ -150,7 +151,7 @@ export default function Sidebar(props: Props) {
                 onChange={onFrequentQueryChange}
                 onSelect={onFrequentSelect}
               />
-              <button onClick={onFrequentSearch} className={"btn block" + (isFrequentSearching ? ' loading' : '')} disabled={!!isFrequentSearching} aria-busy={!!isFrequentSearching}>
+              <button onClick={() => { onFrequentSearch(); onFrequentQueryChange('') }} className={"btn block" + (isFrequentSearching ? ' loading' : '')} disabled={!!isFrequentSearching} aria-busy={!!isFrequentSearching}>
                 {isFrequentSearching ? 'Dodaję…' : 'Dodaj lokalizację'}
               </button>
 
@@ -274,11 +275,28 @@ export default function Sidebar(props: Props) {
             <label className="label">🚦 Wyróżnij ulicę (Warszawa)</label>
             <div className="field-row nowrap">
               <input
-                placeholder="np. Puławska"
+                placeholder="np. Puławska, Marszałkowska (możesz wkleić wiele wierszy lub rozdzielić przecinkami)"
                 value={streetQuery}
                 onChange={(e) => onStreetQueryChange(e.target.value)}
               />
-              <button className="btn" onClick={onAddStreet}>Dodaj ulicę</button>
+              <button
+                className="btn"
+                onClick={() => {
+                  const names = streetQuery
+                    .split(/[\n,;]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                  if (names.length === 0) return
+                  if (onAddStreets) onAddStreets(names)
+                  else if (onAddStreet) {
+                    // Fallback: add the first
+                    onAddStreet()
+                  }
+                  onStreetQueryChange('')
+                }}
+              >
+                Dodaj ulicę/ulice
+              </button>
             </div>
             {highlightedStreets.length > 0 && (
               <div className="stack">
