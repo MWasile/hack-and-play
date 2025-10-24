@@ -1,4 +1,5 @@
 import AddressAutocomplete from './AddressAutocomplete'
+import { AccordionItem } from './Accordion'
 
 export type Suggestion = { lat: number; lng: number; label: string }
 
@@ -91,12 +92,11 @@ export default function Sidebar(props: Props) {
           </div>
         </div>
         {homeLabel && (
-          <p className="hint">Wybrana lokalizacja: {homeLabel}</p>
+					<p className="hint">Wybrana lokalizacja: <strong>{homeLabel}</strong></p>
         )}
       </div>
 
-      <details className="section" open>
-        <summary>➕ Opcjonalne</summary>
+      <AccordionItem className="section" title={<>➕ Opcjonalne</>} defaultOpen>
         <div className="stack">
           <div className="field">
             <label className="label">💼 Adres Pracy / Uczelni</label>
@@ -124,10 +124,9 @@ export default function Sidebar(props: Props) {
             </div>
           </div>
         </div>
-      </details>
+      </AccordionItem>
 
-      <details className="section" open>
-        <summary>🎛️ Filtry</summary>
+      <AccordionItem className="section" title={<>🎛️ Filtry</>} defaultOpen>
         <div className="stack">
           <label className="checkbox left">
             <input type="checkbox" checked={analyzeCommute} onChange={(e) => onAnalyzeCommuteChange(e.target.checked)} />
@@ -227,10 +226,9 @@ export default function Sidebar(props: Props) {
             )}
           </div>
         </div>
-      </details>
+      </AccordionItem>
 
       {commuteInfo && <p className="hint">{commuteInfo}</p>}
     </aside>
   )
 }
-

@@ -6,13 +6,12 @@ on:
 
 jobs:
   docker:
-    runs-on:
-      - self-hosted
-      - aks
-      - aks-runners
+    runs-on: aks-runners
     permissions:
       contents: read
     env:
+      REGISTRY: ${{ secrets.SCW_REGISTRY }}
+      NAMESPACE: ${{ secrets.SCW_NAMESPACE }}
       IMAGE: api
       TAG: ${{ github.sha }}
     steps:
@@ -20,10 +19,18 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Parse SCR host/namespace from secret
+        run: |
+          FULL="${{ secrets.SCW_REGISTRY }}"              # np. rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter
+          HOST="${FULL%%/*}"
+          NS="${FULL#*/}"
+          echo "REGISTRY=$HOST" >> $GITHUB_ENV
+          echo "NAMESPACE=$NS" >> $GITHUB_ENV   
+
       - name: Login to Scaleway Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ secrets.REGISTRY }}
           username: nologin
           password: ${{ secrets.SCW_SECRET_KEY }}
 
@@ -34,12 +41,12 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:${{ env.TAG }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:buildcache,mode=max
+            rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:${{ env.TAG }}
+          cache-from: type=registry,ref=rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:buildcache
+          cache-to: type=registry,ref=rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:buildcache,mode=max
 
-      - name: Tag latest (only main)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Tag latest (only master)
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          docker build -f backend/Dockerfile -t $REGISTRY/$NAMESPACE/$IMAGE:latest backend
-          docker push $REGISTRY/$NAMESPACE/$IMAGE:latest
+          docker build -f backend/Dockerfile -t rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:latest backend
+          docker push rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:latest
