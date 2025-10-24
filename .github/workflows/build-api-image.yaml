@@ -52,15 +52,3 @@ jobs:
         run: |
           docker build -f backend/Dockerfile -t rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:latest backend
           docker push rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:latest
-
-      - name: Update image tag in values.yaml and commit
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          sed -i "s|^  tag: .*|  tag: \"rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:${TAG}\"|" infra/charts/api/values.yaml
-          
-          git add infra/charts/api/values.yaml
-          git commit -m "chore(ci): update image tag to ${TAG}"
-          git push
