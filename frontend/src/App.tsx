@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import MapCanvas, { type CircleSpec, type MarkerSpec } from './components/MapCanvas'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
-import { fetchIsochronesORS, fetchOSRMRoute, fetchOverpassGreenAreas, fetchWarsawDistricts, fetchStreetByNameInWarsaw, fetchNearbyNamedStreets } from './lib/api'
+import L from 'leaflet'
+import { fetchIsochronesORS, fetchOSRMRoute, fetchOverpassGreenAreas, fetchWarsawDistricts, fetchStreetByNameInWarsaw, fetchNearbyNamedStreets, fetchTrafficGrid, fetchSocialLifeHotspots, fetchDistrictRhythm, fetchDigitalNoise, fetchLifeBalance, fetchSocialAvailability, fetchSafetyIncidents, type TimeOfDay } from './lib/api'
 import Sidebar from './components/Sidebar'
 import AddressCards from './components/AddressCards'
 import Suggestions from './components/Suggestions'
 import TopBar from './components/TopBar'
 import Footer from './components/Footer'
+import MapLegend from './components/MapLegend'
 
 // Tiny geocoder using OpenStreetMap Nominatim (public demo; keep requests light)
 async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -68,6 +70,38 @@ function App() {
   const [suggestedDistricts, setSuggestedDistricts] = useState<string[]>([])
   const [suggestedStreets, setSuggestedStreets] = useState<string[]>([])
 
+  // Advanced overlays controls
+  const [analysisRadius, setAnalysisRadius] = useState(3000)
+  const [showTraffic, setShowTraffic] = useState(false)
+  const [trafficTime, setTrafficTime] = useState<TimeOfDay>('morning')
+  const [showSocialLife, setShowSocialLife] = useState(false)
+  const [showDistrictRhythm, setShowDistrictRhythm] = useState(false)
+  const [showDigitalNoise, setShowDigitalNoise] = useState(false)
+  const [showLifeBalance, setShowLifeBalance] = useState(false)
+  const [showSocialAvailability, setShowSocialAvailability] = useState(false)
+  const [showSafety, setShowSafety] = useState(false)
+
+  // Deterministic color per district name (HSL based on string hash)
+  function hashString(s: string): number {
+    let h = 5381
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) + h) + s.charCodeAt(i) // h * 33 + c
+      h |= 0
+    }
+    return Math.abs(h)
+  }
+  function hsl(h: number, s: number, l: number): string {
+    return `hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`
+  }
+  function districtColor(name: string | undefined): { stroke: string; fill: string } {
+    if (!name) return { stroke: '#555', fill: 'rgba(120,120,120,0.35)' }
+    const hue = hashString(name.toLowerCase()) % 360
+    return {
+      stroke: hsl(hue, 70, 40),
+      fill: hsl(hue, 65, 55),
+    }
+  }
+
   // Geocode actions
   const searchHome = useCallback(async () => {
     const res = await geocodeAddress(homeQuery)
@@ -93,26 +127,38 @@ function App() {
     return m
   }, [home, work, frequent])
 
-  // Optional green-area circle around home
+  // Optional circles: analysis range (dashed) around current center, and green-area circle around home
+  const mapCenter = home ?? work ?? frequent ?? null
   const circles: CircleSpec[] = useMemo(() => {
-    if (analyzeGreen && home) {
-      return [
-        {
-          id: 'green-radius',
-          center: home,
-          radiusMeters: greenRadius,
-          color: '#2e7d32',
-          fillColor: '#66bb6a',
-          opacity: 0.8,
-          fillOpacity: 0.15,
-        },
-      ]
+    const arr: CircleSpec[] = []
+    if (mapCenter) {
+      arr.push({
+        id: 'analysis-range',
+        center: mapCenter,
+        radiusMeters: analysisRadius,
+        color: '#1e88e5',
+        fillOpacity: 0,
+        opacity: 1,
+        weight: 2,
+        dashArray: '6 6',
+      })
     }
-    return []
-  }, [analyzeGreen, greenRadius, home])
+    if (analyzeGreen && home) {
+      arr.push({
+        id: 'green-radius',
+        center: home,
+        radiusMeters: greenRadius,
+        color: '#2e7d32',
+        fillColor: '#66bb6a',
+        opacity: 0.8,
+        fillOpacity: 0.15,
+      })
+    }
+    return arr
+  }, [mapCenter, analysisRadius, analyzeGreen, greenRadius, home])
 
   // Choose map center: prefer home, else work, else frequent
-  const mapCenter = home ?? work ?? frequent ?? null
+  // const mapCenter = home ?? work ?? frequent ?? null
 
   // Restore preferences on first load
   useEffect(() => {
@@ -133,6 +179,15 @@ function App() {
       setGreenRadius(p.greenRadius ?? 1000)
       setShowDistricts(!!p.showDistricts)
       if (Array.isArray(p.selectedDistricts)) setSelectedDistricts(p.selectedDistricts)
+      setAnalysisRadius(p.analysisRadius ?? 3000)
+      setShowTraffic(!!p.showTraffic)
+      setTrafficTime(p.trafficTime ?? 'morning')
+      setShowSocialLife(!!p.showSocialLife)
+      setShowDistrictRhythm(!!p.showDistrictRhythm)
+      setShowDigitalNoise(!!p.showDigitalNoise)
+      setShowLifeBalance(!!p.showLifeBalance)
+      setShowSocialAvailability(!!p.showSocialAvailability)
+      setShowSafety(!!p.showSafety)
     } catch {}
   }, [])
 
@@ -144,10 +199,13 @@ function App() {
       considerChild, childAge, hasPets,
       analyzeGreen, greenRadius,
       showDistricts, selectedDistricts,
+      analysisRadius,
+      showTraffic, trafficTime,
+      showSocialLife, showDistrictRhythm, showDigitalNoise, showLifeBalance, showSocialAvailability, showSafety,
       highlightedStreetsNames: highlightedStreets.map((s) => s.name),
     }
     localStorage.setItem('hp_prefs_v1', JSON.stringify(prefs))
-  }, [home, work, frequent, analyzeCommute, commuteMode, commuteMaxMins, considerChild, childAge, hasPets, analyzeGreen, greenRadius, showDistricts, selectedDistricts, highlightedStreets])
+  }, [home, work, frequent, analyzeCommute, commuteMode, commuteMaxMins, considerChild, childAge, hasPets, analyzeGreen, greenRadius, showDistricts, selectedDistricts, highlightedStreets, analysisRadius, showTraffic, trafficTime, showSocialLife, showDistrictRhythm, showDigitalNoise, showLifeBalance, showSocialAvailability, showSafety])
 
   // Commute analysis: ORS isochrones if key present; otherwise OSRM routing to Work
   useEffect(() => {
@@ -234,7 +292,37 @@ function App() {
     }
   }, [showDistricts])
 
-  // Compute suggested districts when home and districts are available
+  // Show selected Warsaw districts on map
+  useEffect(() => {
+    // Remove previous districts layers
+    setGeoLayers((l) => l.filter((x) => !x.id.startsWith('warsaw-district')))
+    if (!showDistricts || !warsawDistricts) return
+    const sel = new Set(selectedDistricts.map((n) => n.toLowerCase()))
+    const feats = (warsawDistricts.features || []).filter((f: any) => {
+      const name = f.properties?.name || f.properties?.tags?.name
+      return name && sel.has(String(name).toLowerCase())
+    })
+    if (!feats.length) return
+    const fc: FeatureCollection = { type: 'FeatureCollection', features: feats as any }
+    setGeoLayers((prev) => [
+      ...prev,
+      {
+        id: 'warsaw-districts',
+        data: fc,
+        style: (feature: any) => {
+          const name = feature?.properties?.name || feature?.properties?.tags?.name
+          const { stroke, fill } = districtColor(typeof name === 'string' ? name : undefined)
+          return { color: stroke, weight: 2, fillColor: fill, fillOpacity: 0.18, opacity: 0.9 }
+        },
+        onEachFeature: (feature: any, layer: any) => {
+          const name = feature?.properties?.name || feature?.properties?.tags?.name || 'Dzielnica'
+          layer.bindTooltip(String(name), { sticky: true, className: 'polygon-tooltip' })
+        },
+      },
+    ])
+  }, [showDistricts, warsawDistricts, selectedDistricts])
+
+  // Suggest districts based on home location and selected districts
   useEffect(() => {
     if (!home || !warsawDistricts) { setSuggestedDistricts([]); return }
     function featureCenter(f: any): { lat: number; lng: number } | null {
@@ -305,82 +393,240 @@ function App() {
     return () => { cancelled = true }
   }, [home])
 
-  // New: unique RGB color per district name
-  const districtColorMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    const N = districtNames.length || 1
-    function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-      s /= 100; l /= 100
-      const k = (n: number) => (n + h / 30) % 12
-      const a = s * Math.min(l, 1 - l)
-      const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
-      return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))]
+  // Advanced overlays: helpers for coloring
+  function colorRamp(value: number, colors: [string, string, string] = ['#2e7d32', '#ffd54f', '#e53935']): string {
+    const v = Math.max(0, Math.min(1, value))
+    // simple 2-stop blend between low-mid and mid-high
+    function hexToRgb(hex: string): [number, number, number] {
+      const h = hex.replace('#','')
+      const bigint = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+      return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
     }
-    districtNames.forEach((name, idx) => {
-      const hue = Math.round((360 * idx) / N)
-      const [r, g, b] = hslToRgb(hue, 70, 55)
-      map[name] = `rgb(${r}, ${g}, ${b})`
-    })
-    return map
-  }, [districtNames])
+    function mix(a: [number,number,number], b: [number,number,number], t: number): [number,number,number] {
+      return [
+        Math.round(a[0] + (b[0]-a[0]) * t),
+        Math.round(a[1] + (b[1]-a[1]) * t),
+        Math.round(a[2] + (b[2]-a[2]) * t),
+      ]
+    }
+    const [c1, c2, c3] = colors.map(hexToRgb)
+    const rgb = v < 0.5 ? mix(c1, c2, v / 0.5) : mix(c2, c3, (v - 0.5) / 0.5)
+    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
+  }
 
-  // Update district layers when data or selection changes
+  // Traffic grid overlay
   useEffect(() => {
-    setGeoLayers((l) => l.filter((x) => !x.id.startsWith('warsaw-district')))
-    if (!showDistricts || !warsawDistricts) return
-
-    const outlineLayer = {
-      id: 'warsaw-districts-outline',
-      data: { type: 'FeatureCollection', features: warsawDistricts.features as any } as FeatureCollection,
-      style: { color: '#cdbaff', weight: 1, fillOpacity: 0.03 },
-      onEachFeature: (feature: any, layer: any) => {
-        const name = feature.properties?.name || feature.properties?.tags?.name || 'Dzielnica'
-        layer.bindTooltip(name, { sticky: true, className: 'polygon-tooltip' })
-      },
-    }
-
-    const selectedSet = new Set(selectedDistricts)
-    const selected: FeatureCollection = {
-      type: 'FeatureCollection',
-      features: (warsawDistricts.features || []).filter((f: any) => selectedSet.has(f.properties?.name || f.properties?.tags?.name)) as any,
-    }
-
-    const coloredLayer = {
-      id: 'warsaw-districts-colored',
-      data: selected,
-      style: (feature: any) => {
-        const name = feature?.properties?.name || feature?.properties?.tags?.name
-        const color = (name && districtColorMap[name]) || '#7a59ff'
-        return { color, weight: 2, fillColor: color, fillOpacity: 0.22, opacity: 1 }
-      },
-      onEachFeature: (feature: any, layer: any) => {
-        const name = feature.properties?.name || feature.properties?.tags?.name || 'Dzielnica'
-        layer.bindTooltip(`⭐ ${name}`, { sticky: true, className: 'polygon-tooltip' })
-        layer.on('mouseover', () => (layer as any).setStyle({ weight: 3, fillOpacity: 0.28 }))
-        layer.on('mouseout', () => (layer as any).setStyle({ weight: 2, fillOpacity: 0.22 }))
-      },
-    }
-
-    setGeoLayers((prev) => [...prev, outlineLayer, coloredLayer])
-  }, [showDistricts, warsawDistricts, selectedDistricts, districtColorMap])
-
-  // Add/Update highlighted streets layer(s)
-  useEffect(() => {
-    // Remove existing street layers
-    setGeoLayers((l) => l.filter((x) => !x.id.startsWith('street-')))
-    if (!highlightedStreets.length) return
-    setGeoLayers((prev) => [
-      ...prev,
-      ...highlightedStreets.map((s, idx) => ({
-        id: `street-${idx}-${s.name}`,
-        data: s.data,
-        style: { color: '#ffd54f', weight: 5, opacity: 0.95 },
-        onEachFeature: (_: any, layer: any) => {
-          layer.bindTooltip(s.name, { sticky: true, className: 'polygon-tooltip' })
+    setGeoLayers((l) => l.filter((x) => x.id !== 'traffic-grid'))
+    if (!showTraffic) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const fc = await fetchTrafficGrid({ lat: center.lat, lng: center.lng }, analysisRadius, trafficTime)
+      if (cancelled) return
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'traffic-grid',
+          data: fc,
+          style: (feature: any) => {
+            const t = Number(feature?.properties?.tscore ?? 0)
+            const color = colorRamp(t, ['#66bb6a', '#ffd54f', '#e53935'])
+            return { color, fillColor: color, weight: 1, fillOpacity: 0.22, opacity: 0.9 }
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const t = Number(feature?.properties?.tscore ?? 0)
+            layer.bindTooltip(`Ruch: ${(t * 100).toFixed(0)}%`, { sticky: true, className: 'polygon-tooltip' })
+          },
         },
-      })),
-    ])
-  }, [highlightedStreets])
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showTraffic, trafficTime, analysisRadius, mapCenter])
+
+  // Social life hotspots (points)
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'social-life'))
+    if (!showSocialLife) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchSocialLifeHotspots({ lat: center.lat, lng: center.lng }, analysisRadius)
+      if (cancelled) return
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'social-life',
+          data,
+          pointToLayer: (_feat: any, latlng: any) => {
+            const score = Number((_feat as any)?.properties?.score ?? 0.5)
+            const radius = 6 + score * 10
+            const color = '#ff6ec7'
+            return (window as any).L ? (window as any).L.circleMarker(latlng, { radius, color, fillColor: color, fillOpacity: 0.4, weight: 1 }) : L.circleMarker(latlng, { radius, color, fillColor: color, fillOpacity: 0.4, weight: 1 })
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const s = Number(feature?.properties?.score ?? 0)
+            layer.bindTooltip(`Życie społeczne: ${(s * 100).toFixed(0)}%`, { sticky: true })
+          },
+        },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showSocialLife, analysisRadius, mapCenter])
+
+  // District rhythm
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'district-rhythm'))
+    if (!showDistrictRhythm) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchDistrictRhythm({ lat: center.lat, lng: center.lng }, analysisRadius)
+      if (cancelled) return
+      const colorBy = (t: string) => t === 'biurowa' ? '#42a5f5' : t === 'rodzinna' ? '#ab47bc' : '#8d6e63'
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'district-rhythm',
+          data,
+          style: (feature: any) => {
+            const t = String(feature?.properties?.type ?? 'sypialnia')
+            const color = colorBy(t)
+            return { color, fillColor: color, weight: 2, fillOpacity: 0.15, opacity: 0.9 }
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const t = String(feature?.properties?.type ?? 'strefa')
+            layer.bindTooltip(`Rytm: ${t}`, { sticky: true, className: 'polygon-tooltip' })
+          },
+        },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showDistrictRhythm, analysisRadius, mapCenter])
+
+  // Digital noise
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'digital-noise'))
+    if (!showDigitalNoise) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchDigitalNoise({ lat: center.lat, lng: center.lng }, analysisRadius)
+      if (cancelled) return
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'digital-noise',
+          data,
+          style: (feature: any) => {
+            const n = Number(feature?.properties?.noise ?? 0)
+            const color = colorRamp(n, ['#7c4dff', '#ce93d8', '#f48fb1'])
+            return { color, fillColor: color, weight: 1, fillOpacity: 0.18, opacity: 0.9, dashArray: '4 4' }
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const n = Number(feature?.properties?.noise ?? 0)
+            layer.bindTooltip(`Cyfrowy hałas: ${(n * 100).toFixed(0)}%`, { sticky: true })
+          },
+        },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showDigitalNoise, analysisRadius, mapCenter])
+
+  // Life balance
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'life-balance'))
+    if (!showLifeBalance) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchLifeBalance({ lat: center.lat, lng: center.lng }, analysisRadius)
+      if (cancelled) return
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'life-balance',
+          data,
+          style: (feature: any) => {
+            const b = Number(feature?.properties?.balance ?? 0)
+            const color = colorRamp(b, ['#81c784', '#fff59d', '#ffb74d'])
+            return { color, fillColor: color, weight: 1, fillOpacity: 0.2, opacity: 0.9 }
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const b = Number(feature?.properties?.balance ?? 0)
+            layer.bindTooltip(`Life balance: ${(b * 100).toFixed(0)}%`, { sticky: true })
+          },
+        },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showLifeBalance, analysisRadius, mapCenter])
+
+  // Social availability
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'social-availability'))
+    if (!showSocialAvailability) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchSocialAvailability({ lat: center.lat, lng: center.lng }, analysisRadius)
+      if (cancelled) return
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'social-availability',
+          data: data as any,
+          style: (feature: any) => {
+            const a = Number(feature?.properties?.availability ?? 0)
+            const color = colorRamp(a, ['#4dd0e1', '#80cbc4', '#00acc1'])
+            return { color, fillColor: color, weight: 1, fillOpacity: 0.18, opacity: 0.9 }
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const a = Number(feature?.properties?.availability ?? 0)
+            layer.bindTooltip(`Dostępność społeczna: ${(a * 100).toFixed(0)}%`, { sticky: true })
+          },
+        },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showSocialAvailability, analysisRadius, mapCenter])
+
+  // Safety incidents (points)
+  useEffect(() => {
+    setGeoLayers((l) => l.filter((x) => x.id !== 'safety-incidents'))
+    if (!showSafety) return
+    const center = mapCenter
+    if (!center) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchSafetyIncidents({ lat: center.lat, lng: center.lng }, analysisRadius)
+      if (cancelled) return
+      setGeoLayers((prev) => [
+        ...prev,
+        {
+          id: 'safety-incidents',
+          data,
+          pointToLayer: (feature: any, latlng: any) => {
+            const sev = Number(feature?.properties?.severity ?? 3)
+            const t = Math.max(0, Math.min(1, (sev - 1) / 4))
+            const color = colorRamp(t, ['#81c784', '#ffd54f', '#e53935'])
+            const radius = 4 + t * 8
+            return L.circleMarker(latlng, { radius, color, fillColor: color, fillOpacity: 0.45, weight: 1 })
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const sev = Number(feature?.properties?.severity ?? 3)
+            layer.bindTooltip(`Incydenty: ${sev}/5`, { sticky: true })
+          },
+        },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [showSafety, analysisRadius, mapCenter])
 
   const handleAddStreet = useCallback(async () => {
     const name = streetQuery.trim()
@@ -444,13 +690,8 @@ function App() {
           hasPets={hasPets}
           onHasPetsChange={setHasPets}
 
-          analyzeGreen={analyzeGreen}
-          onAnalyzeGreenChange={setAnalyzeGreen}
-          greenRadius={greenRadius}
-          onGreenRadiusChange={setGreenRadius}
-
+          // District selection (list only; toggle lives in legend)
           showDistricts={showDistricts}
-          onShowDistrictsChange={setShowDistricts}
           districtNames={districtNames}
           selectedDistricts={selectedDistricts}
           onToggleDistrict={(name, checked) => setSelectedDistricts((prev) => checked ? [...prev, name] : prev.filter((n) => n !== name))}
@@ -460,6 +701,7 @@ function App() {
           highlightedStreets={highlightedStreets}
           onAddStreet={handleAddStreet}
           onRemoveHighlightedStreet={removeHighlightedStreet}
+
 
           commuteInfo={commuteInfo}
         />
@@ -472,6 +714,35 @@ function App() {
             geoJsonLayers={geoLayers}
             className="map"
             height="75vh"
+          />
+
+          {/* Floating legend panel for quick layer toggles */}
+          <MapLegend
+            disabled={!mapCenter}
+            analysisRadius={analysisRadius}
+            onAnalysisRadiusChange={setAnalysisRadius}
+            greenRadius={greenRadius}
+            onGreenRadiusChange={setGreenRadius}
+            analyzeGreen={analyzeGreen}
+            onAnalyzeGreenChange={setAnalyzeGreen}
+            showDistricts={showDistricts}
+            onShowDistrictsChange={setShowDistricts}
+            showTraffic={showTraffic}
+            onShowTrafficChange={setShowTraffic}
+            trafficTime={trafficTime}
+            onTrafficTimeChange={setTrafficTime}
+            showSocialLife={showSocialLife}
+            onShowSocialLifeChange={setShowSocialLife}
+            showDistrictRhythm={showDistrictRhythm}
+            onShowDistrictRhythmChange={setShowDistrictRhythm}
+            showDigitalNoise={showDigitalNoise}
+            onShowDigitalNoiseChange={setShowDigitalNoise}
+            showLifeBalance={showLifeBalance}
+            onShowLifeBalanceChange={setShowLifeBalance}
+            showSocialAvailability={showSocialAvailability}
+            onShowSocialAvailabilityChange={setShowSocialAvailability}
+            showSafety={showSafety}
+            onShowSafetyChange={setShowSafety}
           />
 
           {/* Address tiles below map */}

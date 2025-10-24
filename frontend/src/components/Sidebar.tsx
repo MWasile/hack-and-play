@@ -39,13 +39,8 @@ interface Props {
   hasPets: boolean
   onHasPetsChange: (b: boolean) => void
 
-  analyzeGreen: boolean
-  onAnalyzeGreenChange: (b: boolean) => void
-  greenRadius: number
-  onGreenRadiusChange: (n: number) => void
-
+  // District selection (toggle lives in legend)
   showDistricts: boolean
-  onShowDistrictsChange: (b: boolean) => void
   districtNames: string[]
   selectedDistricts: string[]
   onToggleDistrict: (name: string, checked: boolean) => void
@@ -69,8 +64,7 @@ export default function Sidebar(props: Props) {
     analyzeCommute, onAnalyzeCommuteChange, commuteMode, onCommuteModeChange, commuteMaxMins, onCommuteMaxMinsChange,
     considerChild, onConsiderChildChange, childAge, onChildAgeChange,
     hasPets, onHasPetsChange,
-    analyzeGreen, onAnalyzeGreenChange, greenRadius, onGreenRadiusChange,
-    showDistricts, onShowDistrictsChange, districtNames, selectedDistricts, onToggleDistrict,
+    showDistricts, districtNames, selectedDistricts, onToggleDistrict,
     streetQuery, onStreetQueryChange, highlightedStreets, onAddStreet, onRemoveHighlightedStreet,
     commuteInfo,
   } = props
@@ -92,11 +86,11 @@ export default function Sidebar(props: Props) {
           </div>
         </div>
         {homeLabel && (
-					<p className="hint">Wybrana lokalizacja: <strong>{homeLabel}</strong></p>
+          <p className="hint">Wybrana lokalizacja: {homeLabel}</p>
         )}
       </div>
 
-      <AccordionItem className="section" title={<>➕ Opcjonalne</>} defaultOpen>
+      <AccordionItem className="section" title={<>✚ Opcjonalne</>} defaultOpen>
         <div className="stack">
           <div className="field">
             <label className="label">💼 Adres Pracy / Uczelni</label>
@@ -166,22 +160,6 @@ export default function Sidebar(props: Props) {
             <span>🐾 Zwierzęta</span>
           </label>
 
-          <label className="checkbox left">
-            <input type="checkbox" checked={analyzeGreen} onChange={(e) => onAnalyzeGreenChange(e.target.checked)} />
-            <span>🌳 Analiza "zielonych miejsc" w okolicy</span>
-          </label>
-          {analyzeGreen && (
-            <div className="field">
-              <label className="label">Promień analizy (m)</label>
-              <input type="range" min={200} max={5000} step={100} value={greenRadius} onChange={(e) => onGreenRadiusChange(Number(e.target.value))} />
-              <div className="hint">{greenRadius} m</div>
-            </div>
-          )}
-
-          <label className="checkbox left">
-            <input type="checkbox" checked={showDistricts} onChange={(e) => onShowDistrictsChange(e.target.checked)} />
-            <span>🗺️ Podświetl/Ukryj dzielnice Warszawy</span>
-          </label>
           {showDistricts && (
             <div className="field">
               <label className="label">Wybierz dzielnice do wyróżnienia</label>

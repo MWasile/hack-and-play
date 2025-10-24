@@ -25,6 +25,9 @@ export type CircleSpec = {
   fillColor?: string
   opacity?: number
   fillOpacity?: number
+  // Added: outline styling
+  weight?: number
+  dashArray?: string
 }
 
 export type GeoJsonLayerSpec = {
@@ -32,6 +35,7 @@ export type GeoJsonLayerSpec = {
   data: FeatureCollection | Feature<Geometry>
   style?: L.PathOptions | L.StyleFunction
   onEachFeature?: L.GeoJSONOptions['onEachFeature']
+  pointToLayer?: L.GeoJSONOptions['pointToLayer']
 }
 
 interface Props {
@@ -240,14 +244,17 @@ export default function MapCanvas({
     circles.forEach((c) => {
       const key = c.id
       const center: LatLngExpression = [c.center.lat, c.center.lng]
+      const style: L.CircleMarkerOptions = {
+        radius: c.radiusMeters,
+        color: c.color ?? '#2e7d32',
+        fillColor: c.fillColor ?? '#66bb6a',
+        opacity: c.opacity ?? 0.8,
+        fillOpacity: c.fillOpacity ?? 0.2,
+        weight: c.weight ?? 2,
+        dashArray: c.dashArray as any,
+      } as any
       if (!circlesRef.current[key]) {
-        const circle = L.circle(center, {
-          radius: c.radiusMeters,
-          color: c.color ?? '#2e7d32',
-          fillColor: c.fillColor ?? '#66bb6a',
-          opacity: c.opacity ?? 0.8,
-          fillOpacity: c.fillOpacity ?? 0.2,
-        }).addTo(map)
+        const circle = L.circle(center, style).addTo(map)
         circlesRef.current[key] = circle
       } else {
         circlesRef.current[key].setLatLng(center)
@@ -257,7 +264,9 @@ export default function MapCanvas({
           fillColor: c.fillColor ?? '#66bb6a',
           opacity: c.opacity ?? 0.8,
           fillOpacity: c.fillOpacity ?? 0.2,
-        })
+          weight: c.weight ?? 2,
+          dashArray: c.dashArray as any,
+        } as any)
       }
     })
   }, [circles])
@@ -281,6 +290,7 @@ export default function MapCanvas({
         const layer = L.geoJSON(g.data as any, {
           style: (g.style as any) ?? { color: '#ff6f00', weight: 2, fillOpacity: 0.15 },
           onEachFeature: g.onEachFeature as any,
+          pointToLayer: g.pointToLayer as any,
         }).addTo(map)
         geoJsonRef.current[key] = layer
       } else {

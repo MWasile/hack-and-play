@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:bookworm-slim AS builder
 
 WORKDIR /backend
 
@@ -17,4 +17,4 @@ COPY . /backend
 
 WORKDIR /backend
 
-CMD ["uv", "run", "fastapi", "run", "main.py", "--host", "0.0.0.0", "--port", "5001"]
+CMD ["sh", "-c", "uv run alembic -c alembic.ini upgrade head && uv run fastapi run main.py --host 0.0.0.0 --port 5001"]
