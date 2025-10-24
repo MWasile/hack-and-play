@@ -45,6 +45,12 @@ function randomNearby(center: LngLat, meters: number): LngLat {
 
 function distinct<T>(arr: T[]): T[] { return Array.from(new Set(arr)) }
 
+function metersToDeg(centerLat: number, dxMeters: number, dyMeters: number): { dLng: number; dLat: number } {
+  const dLat = dyMeters / 111000
+  const dLng = dxMeters / (111000 * Math.cos((centerLat * Math.PI) / 180))
+  return { dLng, dLat }
+}
+
 // --- OpenRouteService isochrones (POST); returns FeatureCollection or null if no key ---
 export async function fetchIsochronesORS(center: LngLat, mode: CommuteMode, rangeSeconds: number): Promise<FeatureCollection | null> {
   if (USE_MOCKS) {
@@ -188,8 +194,8 @@ export async function fetchStreetByNameInWarsaw(streetName: string): Promise<Fea
     [out:json][timeout:30];
     area["name"="Warszawa"]["boundary"="administrative"]["admin_level"="8"]->.warszawa;
     (
-      way["highway"]["name"="${streetName.replace(/"/g, '\\"')}"](area.warszawa);
-      relation["type"="route"]["route"="road"]["name"="${streetName.replace(/"/g, '\\"')}"](area.warszawa);
+      way["highway"]["name"="${streetName.replace(/"/g, '\"')}"](area.warszawa);
+      relation["type"="route"]["route"="road"]["name"="${streetName.replace(/"/g, '\"')}"](area.warszawa);
     );
     out body; >; out skel qt;`.trim()
 
@@ -237,4 +243,98 @@ export async function fetchNearbyNamedStreets(center: LngLat, radiusMeters: numb
   const osm2geojson = (await import('osmtogeojson')).default as any
   const fcg = osm2geojson(json) as FeatureCollection
   return fcg
+}
+
+// --- Advanced filters (mock only) ---
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening'
+
+export async function fetchTrafficGrid(center: LngLat, radiusMeters: number, time: TimeOfDay): Promise<FeatureCollection> {
+  // mock grid of squares colored by traffic intensity 0..1
+  const size = Math.max(400, Math.min(radiusMeters / 4, 1200))
+  const cols = 5
+  const rows = 5
+  const features: Feature<Geometry>[] = []
+  for (let y = -Math.floor(rows/2); y <= Math.floor(rows/2); y++) {
+    for (let x = -Math.floor(cols/2); x <= Math.floor(cols/2); x++) {
+      const { dLng, dLat } = metersToDeg(center.lat, x * size * 1.2, y * size * 1.2)
+      const c = { lat: center.lat + dLat, lng: center.lng + dLng }
+      // vary intensity by time of day
+      const base = time === 'morning' ? 0.6 : time === 'afternoon' ? 0.5 : 0.4
+      const noise = Math.random() * 0.4
+      const tscore = Math.min(1, Math.max(0.05, base + noise - (Math.abs(x) + Math.abs(y)) * 0.06))
+      features.push(makeSquare(c, size, { kind: 'traffic', time, tscore }))
+    }
+  }
+  return fc(features)
+}
+
+export async function fetchSocialLifeHotspots(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
+  // mock points where social activity is high
+  const pts: Feature<Geometry>[] = []
+  const N = 12
+  for (let i = 0; i < N; i++) {
+    const p = randomNearby(center, radiusMeters * 0.9)
+    const score = Math.random() * 0.7 + 0.3
+    pts.push({ type: 'Feature', properties: { kind: 'social', score, name: `Hotspot ${i+1}` }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } as Geometry })
+  }
+  return fc(pts)
+}
+
+export async function fetchDistrictRhythm(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
+  // mock labeled zones: sypialnia/rodzinna/biurowa
+  const types = ['sypialnia', 'rodzinna', 'biurowa'] as const
+  const feats: Feature<Geometry>[] = []
+  const size = Math.max(600, Math.min(radiusMeters / 3, 1600))
+  for (let i = 0; i < 6; i++) {
+    const c = randomNearby(center, radiusMeters)
+    const t = types[Math.floor(Math.random()*types.length)]
+    feats.push(makeSquare(c, size, { kind: 'rhythm', type: t }))
+  }
+  return fc(feats)
+}
+
+export async function fetchDigitalNoise(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
+  // mock grid with noise intensity 0..1
+  const size = Math.max(400, Math.min(radiusMeters / 4, 1200))
+  const feats: Feature<Geometry>[] = []
+  for (let i = 0; i < 14; i++) {
+    const c = randomNearby(center, radiusMeters * 0.9)
+    const noise = Math.random()
+    feats.push(makeSquare(c, size, { kind: 'digital-noise', noise }))
+  }
+  return fc(feats)
+}
+
+export async function fetchLifeBalance(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
+  const size = Math.max(500, Math.min(radiusMeters / 3, 1500))
+  const feats: Feature<Geometry>[] = []
+  for (let i = 0; i < 8; i++) {
+    const c = randomNearby(center, radiusMeters)
+    const balance = Math.random() * 0.6 + 0.2
+    feats.push(makeSquare(c, size, { kind: 'life-balance', balance }))
+  }
+  return fc(feats)
+}
+
+export async function fetchSocialAvailability(center: LngLat, radiusMeters: number): Promise<Feature<Geometry> | FeatureCollection> {
+  const size = Math.max(400, Math.min(radiusMeters / 4, 1200))
+  const feats: Feature<Geometry>[] = []
+  for (let i = 0; i < 10; i++) {
+    const c = randomNearby(center, radiusMeters)
+    const availability = Math.random()
+    feats.push(makeSquare(c, size, { kind: 'social-availability', availability }))
+  }
+  return fc(feats)
+}
+
+export async function fetchSafetyIncidents(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
+  // mock points with severity 1..5
+  const pts: Feature<Geometry>[] = []
+  const N = 20
+  for (let i = 0; i < N; i++) {
+    const p = randomNearby(center, radiusMeters)
+    const severity = Math.floor(Math.random() * 5) + 1
+    pts.push({ type: 'Feature', properties: { kind: 'safety', severity }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } as Geometry })
+  }
+  return fc(pts)
 }
