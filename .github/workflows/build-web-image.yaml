@@ -1,0 +1,54 @@
+name: build-and-push
+on:
+  push:
+    paths:
+      - "frontend/**"
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: aks-runners
+    permissions:
+      contents: write
+    env:
+      REGISTRY: ${{ secrets.SCW_REGISTRY }}
+      NAMESPACE: ${{ secrets.SCW_NAMESPACE }}
+      IMAGE: web
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Parse SCR host/namespace from secret
+        run: |
+          FULL="${{ secrets.SCW_REGISTRY }}" 
+          HOST="${FULL%%/*}"
+          NS="${FULL#*/}"
+          echo "REGISTRY=$HOST" >> $GITHUB_ENV
+          echo "NAMESPACE=$NS" >> $GITHUB_ENV   
+
+      - name: Login to Scaleway Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY }}
+          username: nologin
+          password: ${{ secrets.SCW_SECRET_KEY }}
+
+      - name: Build and push (backend/Dockerfile)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:${{ env.TAG }}
+          cache-from: type=registry,ref=rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:buildcache
+          cache-to: type=registry,ref=rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:buildcache,mode=max
+
+      - name: Tag latest (only master)
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          docker build -f frontend/Dockerfile -t rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:latest backend
+          docker push rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web:latest
