@@ -4,10 +4,13 @@ services:
   api:
     build:
       context: .
+      dockerfile: Dockerfile
     restart: on-failure
     working_dir: /backend
     ports:
       - "5001:5001"
+    env_file:
+      - ../envs/backend/db.env
     environment:
       - ROOT_PATH=/
       - DEBUG=TRUE
