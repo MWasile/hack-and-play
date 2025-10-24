@@ -21,7 +21,7 @@ metadata:
   labels:
     app: {{ .Values.web.appName }}
 spec:
-  replicas: {{ .Values.forms.web.replicas }}
+  replicas: {{ .Values.web.replicas }}
   selector:
     matchLabels:
       app: {{.Values.web.appName}}
@@ -33,7 +33,7 @@ spec:
       imagePullSecrets:
         - name: k8sacrauth
       containers:
-        - name: {{ .Values.forms.web.appName }}
+        - name: {{ .Values.web.appName }}
           image: "{{.Values.web.image.name}}:{{.Values.web.image.tag}}"
           ports:
             - containerPort: 5173
