@@ -1,19 +1,23 @@
 
 resource "kubernetes_namespace_v1" "arc" {
-  metadata { name = "actions-runner-system" }
+  metadata { name = "actions-runner" }
 }
 
 
-resource "kubernetes_secret_v1" "github_pat" {
+resource "kubernetes_secret_v1" "github_app" {
   metadata {
-    name      = "github-token"
+    name = "github-app"
     namespace = kubernetes_namespace_v1.arc.metadata[0].name
   }
+
   type = "Opaque"
   data = {
-    github_token = base64encode(var.github_token)
+    github_app_id              = var.github_app_id
+    github_app_installation_id = var.github_app_installation_id
+    github_app_private_key     = var.github_app_private_key
   }
 }
+
 
 resource "helm_release" "arc_controller" {
   name       = "gha-runner-scale-set-controller"
@@ -30,15 +34,15 @@ resource "helm_release" "runner_set" {
   chart      = "gha-runner-scale-set"
   version    = "0.9.2"
   namespace  = kubernetes_namespace_v1.arc.metadata[0].name
-  depends_on = [helm_release.arc_controller, kubernetes_secret_v1.github_pat]
+  depends_on = [helm_release.arc_controller, kubernetes_secret_v1.github_app]
 
   values = [yamlencode({
     githubConfigUrl    = var.github_config_url
 
-    githubConfigSecret = kubernetes_secret_v1.github_pat.metadata[0].name
+    githubConfigSecret = kubernetes_secret_v1.github_app.metadata[0].name
 
-    runnerScaleSetName = var.runner_scale_set_name
-    labels             = ["self-hosted","aks", var.runner_scale_set_name]
+    runnerScaleSetName = replace(var.runner_scale_set_name, "/-$/", "")
+    labels             = ["self-hosted","aks", replace(var.runner_scale_set_name, "/-$/", "")]
     minRunners         = var.min_runners
     maxRunners         = var.max_runners
     ephemeral          = true

@@ -1,0 +1,16 @@
+namespace: "fastmove"
+domain: "idk-hackplay.pl"
+
+web:
+  appName: web
+  replicas: 1
+  image:
+    name: rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/web
+    tag: latest
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 150m

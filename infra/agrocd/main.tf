@@ -30,8 +30,8 @@ resource "kubernetes_secret_v1" "tls" {
   }
   type = "kubernetes.io/tls"
   data = {
-    "tls.crt" = file("${path.module}/certs/fingerslide.pl.certificate.pem")
-    "tls.key" = file("${path.module}/certs/fingerslide.pl.key.txt")
+    "tls.crt" = file("${path.module}/certs/pipeline-idk.pl.certificate.pem")
+    "tls.key" = file("${path.module}/certs/pipeline-idk.pl.key.txt")
     }
 }
 
