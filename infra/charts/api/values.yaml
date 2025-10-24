@@ -5,7 +5,7 @@ api:
   appName: api
   replicas: 2
   image:
-    name: rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter:api
+    name: rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api
     tag: latest
   resources:
     requests:
