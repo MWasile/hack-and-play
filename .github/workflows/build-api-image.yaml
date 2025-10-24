@@ -48,7 +48,6 @@ jobs:
           cache-to: type=registry,ref=rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:buildcache,mode=max
 
       - name: Tag latest (only master)
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           docker build -f backend/Dockerfile -t rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:latest backend
           docker push rg.pl-waw.scw.cloud/namespace-thirsty-hofstadter/api:latest
