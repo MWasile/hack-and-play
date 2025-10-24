@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{.Values.forms.web.appName}}
+  name: {{.Values.web.appName}}
   namespace: {{.Values.namespace}}
 spec:
   selector:
-    app: {{.Values.forms.web.appName}}
+    app: {{.Values.web.appName}}
   ports:
     - port: 5173
       targetPort: 5173
@@ -16,31 +16,31 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.forms.web.appName }}
+  name: {{ .Values.web.appName }}
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ .Values.forms.web.appName }}
+    app: {{ .Values.web.appName }}
 spec:
   replicas: {{ .Values.forms.web.replicas }}
   selector:
     matchLabels:
-      app: {{.Values.forms.web.appName}}
+      app: {{.Values.web.appName}}
   template:
     metadata:
       labels:
-        app: {{ .Values.forms.web.appName }}
+        app: {{ .Values.web.appName }}
     spec:
       imagePullSecrets:
         - name: k8sacrauth
       containers:
         - name: {{ .Values.forms.web.appName }}
-          image: "{{.Values.forms.web.image.name}}:{{.Values.forms.web.image.tag}}"
+          image: "{{.Values.web.image.name}}:{{.Values.web.image.tag}}"
           ports:
             - containerPort: 5173
           resources:
             requests:
-              memory: {{.Values.forms.web.resources.requests.memory}}
-              cpu: {{.Values.forms.web.resources.requests.cpu}}
+              memory: {{.Values.web.resources.requests.memory}}
+              cpu: {{.Values.web.resources.requests.cpu}}
             limits:
-              memory: {{.Values.forms.web.resources.limits.memory}}
-              cpu: {{.Values.forms.web.resources.limits.cpu}}
+              memory: {{.Values.web.resources.limits.memory}}
+              cpu: {{.Values.web.resources.limits.cpu}}
