@@ -4,9 +4,11 @@ interface Props {
   home?: Loc | null
   work?: Loc | null
   frequent?: Loc | null
+  frequentList?: Loc[] // New: multiple frequent spots
 }
 
-export default function AddressCards({ home, work, frequent }: Props) {
+export default function AddressCards({ home, work, frequent, frequentList }: Props) {
+  const spots = (frequentList && frequentList.length ? frequentList : (frequent ? [frequent] : []))
   return (
     <div className="address-cards">
       {home && (
@@ -23,14 +25,13 @@ export default function AddressCards({ home, work, frequent }: Props) {
           <div className="muted">{work.lat.toFixed(5)}, {work.lng.toFixed(5)}</div>
         </div>
       )}
-      {frequent && (
-        <div className="address-card">
-          <div className="badge" style={{ background: '#8e24aa' }}>SPOT</div>
-          <div className="big">{frequent.label ?? 'Często odwiedzana'}</div>
-          <div className="muted">{frequent.lat.toFixed(5)}, {frequent.lng.toFixed(5)}</div>
+      {spots.map((s, i) => (
+        <div className="address-card" key={i}>
+          <div className="badge" style={{ background: '#8e24aa' }}>{`SPOT ${i + 1}`}</div>
+          <div className="big">{s.label ?? 'Często odwiedzana'}</div>
+          <div className="muted">{s.lat.toFixed(5)}, {s.lng.toFixed(5)}</div>
         </div>
-      )}
+      ))}
     </div>
   )
 }
-

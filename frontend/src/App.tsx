@@ -10,6 +10,8 @@ import Suggestions from './components/Suggestions'
 import TopBar from './components/TopBar'
 import Footer from './components/Footer'
 import MapLegend from './components/MapLegend'
+import CommuteSummary from './components/CommuteSummary'
+import { motion } from 'framer-motion'
 
 // Tiny geocoder using OpenStreetMap Nominatim (public demo; keep requests light)
 async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -38,10 +40,17 @@ function App() {
   const [workQuery, setWorkQuery] = useState('')
   const [frequentQuery, setFrequentQuery] = useState('')
 
+  // Loading flags for search actions
+  const [isHomeSearching, setIsHomeSearching] = useState(false)
+  const [isWorkSearching, setIsWorkSearching] = useState(false)
+  const [isFrequentSearching, setIsFrequentSearching] = useState(false)
+
   // Locations
   const [home, setHome] = useState<{ lat: number; lng: number; label?: string } | null>(null)
   const [work, setWork] = useState<{ lat: number; lng: number; label?: string } | null>(null)
   const [frequent, setFrequent] = useState<{ lat: number; lng: number; label?: string } | null>(null)
+  // New: multiple frequent locations (last item is the primary SPOT)
+  const [frequentList, setFrequentList] = useState<Array<{ lat: number; lng: number; label?: string }>>([])
 
   // Filters matching the diagram
   const [considerChild, setConsiderChild] = useState(false)
@@ -81,6 +90,12 @@ function App() {
   const [showSocialAvailability, setShowSocialAvailability] = useState(false)
   const [showSafety, setShowSafety] = useState(false)
 
+  // Comparisons of SPOTs to Work
+  const [comparisons, setComparisons] = useState<Array<{ label: string; mins: number; distanceMeters?: number; homeMins?: number; homeDistanceMeters?: number }>>([])
+  const [comparisonsLoading, setComparisonsLoading] = useState(false)
+  // New: explicit flag for commute analysis (isochrones/route) to control CTA disabled state
+  const [isCommuteCalculating, setIsCommuteCalculating] = useState(false)
+
   // Deterministic color per district name (HSL based on string hash)
   function hashString(s: string): number {
     let h = 5381
@@ -104,18 +119,36 @@ function App() {
 
   // Geocode actions
   const searchHome = useCallback(async () => {
-    const res = await geocodeAddress(homeQuery)
-    if (res) setHome(res)
+    try {
+      setIsHomeSearching(true)
+      const res = await geocodeAddress(homeQuery)
+      if (res) setHome(res)
+    } finally {
+      setIsHomeSearching(false)
+    }
   }, [homeQuery])
 
   const searchWork = useCallback(async () => {
-    const res = await geocodeAddress(workQuery)
-    if (res) setWork(res)
+    try {
+      setIsWorkSearching(true)
+      const res = await geocodeAddress(workQuery)
+      if (res) setWork(res)
+    } finally {
+      setIsWorkSearching(false)
+    }
   }, [workQuery])
 
   const searchFrequent = useCallback(async () => {
-    const res = await geocodeAddress(frequentQuery)
-    if (res) setFrequent(res)
+    try {
+      setIsFrequentSearching(true)
+      const res = await geocodeAddress(frequentQuery)
+      if (res) {
+        setFrequent(res) // keep primary for backward references
+        setFrequentList((prev) => [...prev, res])
+      }
+    } finally {
+      setIsFrequentSearching(false)
+    }
   }, [frequentQuery])
 
   // Map markers from selected locations – show short labels
@@ -123,14 +156,26 @@ function App() {
     const m: MarkerSpec[] = []
     if (home) m.push({ id: 'home', position: home, label: 'HOME', color: '#e53935' })
     if (work) m.push({ id: 'work', position: work, label: 'WORK', color: '#1e88e5' })
-    if (frequent) m.push({ id: 'frequent', position: frequent, label: 'SPOT', color: '#8e24aa' })
+    if (frequentList.length > 0) {
+      // Others first (without center control id)
+      const others = frequentList.slice(0, -1)
+      others.forEach((f, i) => m.push({ id: `frequent-${i}`, position: f, label: 'SPOT', color: '#8e24aa' }))
+      const last = frequentList[frequentList.length - 1]
+      m.push({ id: 'frequent', position: last, label: 'SPOT', color: '#8e24aa' })
+    } else if (frequent) {
+      m.push({ id: 'frequent', position: frequent, label: 'SPOT', color: '#8e24aa' })
+    }
     return m
-  }, [home, work, frequent])
+  }, [home, work, frequent, frequentList])
 
   // Optional circles: analysis range (dashed) around current center, and green-area circle around home
-  const mapCenter = home ?? work ?? frequent ?? null
+  const mapCenterCandidate = useMemo(() => {
+    const lastFrequent = frequentList.length ? frequentList[frequentList.length - 1] : frequent
+    return home ?? work ?? lastFrequent ?? null
+  }, [home, work, frequent, frequentList])
   const circles: CircleSpec[] = useMemo(() => {
     const arr: CircleSpec[] = []
+    const mapCenter = mapCenterCandidate
     if (mapCenter) {
       arr.push({
         id: 'analysis-range',
@@ -155,10 +200,7 @@ function App() {
       })
     }
     return arr
-  }, [mapCenter, analysisRadius, analyzeGreen, greenRadius, home])
-
-  // Choose map center: prefer home, else work, else frequent
-  // const mapCenter = home ?? work ?? frequent ?? null
+  }, [mapCenterCandidate, analysisRadius, analyzeGreen, greenRadius, home])
 
   // Restore preferences on first load
   useEffect(() => {
@@ -168,7 +210,12 @@ function App() {
       const p = JSON.parse(raw)
       if (p.home) { setHome(p.home); if (p.home.label) setHomeQuery(p.home.label) }
       if (p.work) { setWork(p.work); if (p.work.label) setWorkQuery(p.work.label) }
-      if (p.frequent) { setFrequent(p.frequent); if (p.frequent.label) setFrequentQuery(p.frequent.label) }
+      if (Array.isArray(p.frequentList)) {
+        setFrequentList(p.frequentList)
+        if (p.frequentList.length) { const last = p.frequentList[p.frequentList.length - 1]; setFrequent(last); if (last.label) setFrequentQuery(last.label) }
+      } else if (p.frequent) {
+        setFrequent(p.frequent); if (p.frequent.label) setFrequentQuery(p.frequent.label)
+      }
       setAnalyzeCommute(!!p.analyzeCommute)
       setCommuteMode(p.commuteMode ?? 'car')
       setCommuteMaxMins(p.commuteMaxMins ?? 30)
@@ -195,6 +242,7 @@ function App() {
   useEffect(() => {
     const prefs = {
       home, work, frequent,
+      frequentList,
       analyzeCommute, commuteMode, commuteMaxMins,
       considerChild, childAge, hasPets,
       analyzeGreen, greenRadius,
@@ -205,7 +253,7 @@ function App() {
       highlightedStreetsNames: highlightedStreets.map((s) => s.name),
     }
     localStorage.setItem('hp_prefs_v1', JSON.stringify(prefs))
-  }, [home, work, frequent, analyzeCommute, commuteMode, commuteMaxMins, considerChild, childAge, hasPets, analyzeGreen, greenRadius, showDistricts, selectedDistricts, highlightedStreets, analysisRadius, showTraffic, trafficTime, showSocialLife, showDistrictRhythm, showDigitalNoise, showLifeBalance, showSocialAvailability, showSafety])
+  }, [home, work, frequent, frequentList, analyzeCommute, commuteMode, commuteMaxMins, considerChild, childAge, hasPets, analyzeGreen, greenRadius, showDistricts, selectedDistricts, highlightedStreets, analysisRadius, showTraffic, trafficTime, showSocialLife, showDistrictRhythm, showDigitalNoise, showLifeBalance, showSocialAvailability, showSafety])
 
   // Commute analysis: ORS isochrones if key present; otherwise OSRM routing to Work
   useEffect(() => {
@@ -215,27 +263,32 @@ function App() {
       setGeoLayers((l) => l.filter((x) => !x.id.startsWith('iso'))) // clear old isochrones
       if (!analyzeCommute || !home) return
 
-      // Try ORS isochrones first
-      const iso = await fetchIsochronesORS({ lat: home.lat, lng: home.lng }, commuteMode as any, commuteMaxMins * 60)
-      if (!cancelled && iso) {
-        setGeoLayers((prev) => [
-          ...prev,
-          { id: 'isochrones', data: iso, style: { color: '#ff6f00', weight: 2, fillOpacity: 0.15 } },
-        ])
-        setCommuteInfo(`Strefa dojazdu ~${commuteMaxMins} min (${commuteMode}).`)
-        return
-      }
-
-      // Fallback: route to Work via OSRM
-      if (work) {
-        const res = await fetchOSRMRoute({ lat: home.lat, lng: home.lng }, { lat: work.lat, lng: work.lng }, commuteMode as any)
-        if (!cancelled && res) {
+      setIsCommuteCalculating(true)
+      try {
+        // Try ORS isochrones first
+        const iso = await fetchIsochronesORS({ lat: home.lat, lng: home.lng }, commuteMode as any, commuteMaxMins * 60)
+        if (!cancelled && iso) {
           setGeoLayers((prev) => [
             ...prev,
-            { id: 'route', data: res.feature, style: { color: '#1e88e5', weight: 4, opacity: 0.9 } },
+            { id: 'isochrones', data: iso, style: { color: '#ff6f00', weight: 2, fillOpacity: 0.15 } },
           ])
-          setCommuteInfo(`Czas dojazdu do pracy: ~${Math.round(res.durationSec / 60)} min (${commuteMode}).`)
+          setCommuteInfo(`Strefa dojazdu ~${commuteMaxMins} min (${commuteMode}).`)
+          return
         }
+
+        // Fallback: route to Work via OSRM
+        if (work) {
+          const res = await fetchOSRMRoute({ lat: home.lat, lng: home.lng }, { lat: work.lat, lng: work.lng }, commuteMode as any)
+          if (!cancelled && res) {
+            setGeoLayers((prev) => [
+              ...prev,
+              { id: 'route', data: res.feature, style: { color: '#1e88e5', weight: 4, opacity: 0.9 } },
+            ])
+            setCommuteInfo(`Czas dojazdu do pracy: ~${Math.round(res.durationSec / 60)} min (${commuteMode}).`)
+          }
+        }
+      } finally {
+        if (!cancelled) setIsCommuteCalculating(false)
       }
     }
     run()
@@ -399,18 +452,22 @@ function App() {
     // simple 2-stop blend between low-mid and mid-high
     function hexToRgb(hex: string): [number, number, number] {
       const h = hex.replace('#','')
-      const bigint = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
-      return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
-    }
-    function mix(a: [number,number,number], b: [number,number,number], t: number): [number,number,number] {
       return [
-        Math.round(a[0] + (b[0]-a[0]) * t),
-        Math.round(a[1] + (b[1]-a[1]) * t),
-        Math.round(a[2] + (b[2]-a[2]) * t),
+        parseInt(h.substring(0, 2), 16),
+        parseInt(h.substring(2, 4), 16),
+        parseInt(h.substring(4, 6), 16),
+      ]
+    }
+    function blend(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
+      return [
+        Math.round(a[0] + (b[0] - a[0]) * t),
+        Math.round(a[1] + (b[1] - a[1]) * t),
+        Math.round(a[2] + (b[2] - a[2]) * t),
       ]
     }
     const [c1, c2, c3] = colors.map(hexToRgb)
-    const rgb = v < 0.5 ? mix(c1, c2, v / 0.5) : mix(c2, c3, (v - 0.5) / 0.5)
+    const mid = 0.5
+    const rgb = v < mid ? blend(c1, c2, v / mid) : blend(c2, c3, (v - mid) / (1 - mid))
     return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
   }
 
@@ -418,7 +475,7 @@ function App() {
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'traffic-grid'))
     if (!showTraffic) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -442,13 +499,13 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showTraffic, trafficTime, analysisRadius, mapCenter])
+  }, [showTraffic, trafficTime, analysisRadius, mapCenterCandidate])
 
   // Social life hotspots (points)
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'social-life'))
     if (!showSocialLife) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -473,13 +530,13 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showSocialLife, analysisRadius, mapCenter])
+  }, [showSocialLife, analysisRadius, mapCenterCandidate])
 
   // District rhythm
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'district-rhythm'))
     if (!showDistrictRhythm) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -504,13 +561,13 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showDistrictRhythm, analysisRadius, mapCenter])
+  }, [showDistrictRhythm, analysisRadius, mapCenterCandidate])
 
   // Digital noise
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'digital-noise'))
     if (!showDigitalNoise) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -534,13 +591,13 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showDigitalNoise, analysisRadius, mapCenter])
+  }, [showDigitalNoise, analysisRadius, mapCenterCandidate])
 
   // Life balance
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'life-balance'))
     if (!showLifeBalance) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -564,13 +621,13 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showLifeBalance, analysisRadius, mapCenter])
+  }, [showLifeBalance, analysisRadius, mapCenterCandidate])
 
   // Social availability
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'social-availability'))
     if (!showSocialAvailability) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -594,13 +651,13 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showSocialAvailability, analysisRadius, mapCenter])
+  }, [showSocialAvailability, analysisRadius, mapCenterCandidate])
 
   // Safety incidents (points)
   useEffect(() => {
     setGeoLayers((l) => l.filter((x) => x.id !== 'safety-incidents'))
     if (!showSafety) return
-    const center = mapCenter
+    const center = mapCenterCandidate
     if (!center) return
     let cancelled = false
     ;(async () => {
@@ -626,24 +683,7 @@ function App() {
       ])
     })()
     return () => { cancelled = true }
-  }, [showSafety, analysisRadius, mapCenter])
-
-  const handleAddStreet = useCallback(async () => {
-    const name = streetQuery.trim()
-    if (!name) return
-    const fc = await fetchStreetByNameInWarsaw(name)
-    if (fc && (fc.features?.length ?? 0) > 0) {
-      setHighlightedStreets((prev) => {
-        if (prev.some((p) => p.name.toLowerCase() === name.toLowerCase())) return prev
-        return [...prev, { name, data: fc }]
-      })
-      setStreetQuery('')
-    }
-  }, [streetQuery])
-
-  const removeHighlightedStreet = useCallback((name: string) => {
-    setHighlightedStreets((prev) => prev.filter((s) => s.name !== name))
-  }, [])
+  }, [showSafety, analysisRadius, mapCenterCandidate])
 
   const addStreetByName = useCallback(async (name: string) => {
     const fc = await fetchStreetByNameInWarsaw(name)
@@ -652,28 +692,100 @@ function App() {
     }
   }, [])
 
-  const homeLabel = home ? (home.label ?? `${home.lat.toFixed(5)}, ${home.lng.toFixed(5)}`) : null
+  // Compute comparisons whenever Work / frequentList / mode changes
+  useEffect(() => {
+    let cancelled = false
+    function approxDistanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+      // rough distance using equirectangular approximation
+      const R = 6371000
+      const toRad = (d: number) => d * Math.PI / 180
+      const x = (toRad(b.lng - a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2))
+      const y = toRad(b.lat - a.lat)
+      return Math.hypot(x, y) * R
+    }
+    async function run() {
+      setComparisons([])
+      if (frequentList.length === 0) { setComparisonsLoading(false); return }
+      // proceed if at least one target (work or home) exists
+      if (!work && !home) { setComparisonsLoading(false); return }
+      setComparisonsLoading(true)
+      try {
+        const modeForOSRM = commuteMode === 'transit' ? 'car' : commuteMode
+        const reqs = frequentList.map(async (spot, i) => {
+          let workMins = NaN
+          let workDistance = NaN
+          if (work) {
+            const resWork = await fetchOSRMRoute({ lat: spot.lat, lng: spot.lng }, { lat: work.lat, lng: work.lng }, modeForOSRM as any)
+            workMins = resWork ? Math.max(1, Math.round((resWork.durationSec) / 60)) : NaN
+            const dWork = resWork ? Number((resWork.feature as any)?.properties?.distance ?? NaN) : NaN
+            workDistance = Number.isFinite(dWork) ? dWork : approxDistanceMeters(spot, work)
+          }
+
+          let homeMins = NaN
+          let homeDistance = NaN
+          if (home) {
+            const resHome = await fetchOSRMRoute({ lat: spot.lat, lng: spot.lng }, { lat: home.lat, lng: home.lng }, modeForOSRM as any)
+            homeMins = resHome ? Math.max(1, Math.round((resHome.durationSec) / 60)) : NaN
+            const dHome = resHome ? Number((resHome.feature as any)?.properties?.distance ?? NaN) : NaN
+            homeDistance = Number.isFinite(dHome) ? dHome : approxDistanceMeters(spot, home)
+          }
+
+          return {
+            label: spot.label ?? `Lokalizacja #${i + 1}`,
+            mins: workMins,
+            distanceMeters: workDistance,
+            homeMins,
+            homeDistanceMeters: homeDistance,
+          }
+        })
+        const results = await Promise.all(reqs)
+        const filtered = results.filter(r => Number.isFinite(r.mins) || Number.isFinite(r.homeMins ?? NaN))
+        if (!cancelled) setComparisons(filtered)
+      } finally {
+        if (!cancelled) setComparisonsLoading(false)
+      }
+    }
+    run()
+    return () => { cancelled = true }
+  }, [work, home, frequentList, commuteMode])
+
+  // Reorder frequent spots (drag-and-drop from Sidebar chips)
+  const reorderFrequent = useCallback((from: number, to: number) => {
+    setFrequentList((prev) => {
+      if (from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }, [])
 
   return (
     <div className="page">
       <TopBar />
-      <div className="app">
+      <main className="app">
         <Sidebar
           homeQuery={homeQuery}
           onHomeQueryChange={setHomeQuery}
-          onHomeSelect={(s) => { setHome({ lat: s.lat, lng: s.lng, label: s.label }); setHomeQuery(s.label) }}
+          onHomeSelect={(s) => setHome(s)}
           onHomeSearch={searchHome}
-          homeLabel={homeLabel}
+          homeLabel={home?.label ?? null}
+          isHomeSearching={isHomeSearching}
 
           workQuery={workQuery}
           onWorkQueryChange={setWorkQuery}
-          onWorkSelect={(s) => { setWork({ lat: s.lat, lng: s.lng, label: s.label }); setWorkQuery(s.label) }}
+          onWorkSelect={(s) => setWork(s)}
           onWorkSearch={searchWork}
+          isWorkSearching={isWorkSearching}
 
           frequentQuery={frequentQuery}
           onFrequentQueryChange={setFrequentQuery}
-          onFrequentSelect={(s) => { setFrequent({ lat: s.lat, lng: s.lng, label: s.label }); setFrequentQuery(s.label) }}
+          onFrequentSelect={(s) => { setFrequent(s); setFrequentList((prev) => [...prev, s]) }}
           onFrequentSearch={searchFrequent}
+          frequentLocations={frequentList}
+          onRemoveFrequent={(index) => setFrequentList((prev) => prev.filter((_, i) => i !== index))}
+          onReorderFrequent={reorderFrequent}
+          isFrequentSearching={isFrequentSearching}
 
           analyzeCommute={analyzeCommute}
           onAnalyzeCommuteChange={setAnalyzeCommute}
@@ -690,74 +802,110 @@ function App() {
           hasPets={hasPets}
           onHasPetsChange={setHasPets}
 
-          // District selection (list only; toggle lives in legend)
           showDistricts={showDistricts}
           districtNames={districtNames}
           selectedDistricts={selectedDistricts}
-          onToggleDistrict={(name, checked) => setSelectedDistricts((prev) => checked ? [...prev, name] : prev.filter((n) => n !== name))}
+          onToggleDistrict={(name, checked) => setSelectedDistricts((prev) => checked ? Array.from(new Set([...prev, name])) : prev.filter((n) => n !== name))}
 
           streetQuery={streetQuery}
           onStreetQueryChange={setStreetQuery}
           highlightedStreets={highlightedStreets}
-          onAddStreet={handleAddStreet}
-          onRemoveHighlightedStreet={removeHighlightedStreet}
-
+          onAddStreet={async () => {
+            const name = streetQuery.trim()
+            if (!name) return
+            const data = await fetchStreetByNameInWarsaw(name)
+            if (data) setHighlightedStreets((prev) => [...prev.filter((s) => s.name.toLowerCase() !== name.toLowerCase()), { name, data }])
+          }}
+          onRemoveHighlightedStreet={(name) => setHighlightedStreets((prev) => prev.filter((s) => s.name !== name))}
 
           commuteInfo={commuteInfo}
+          comparisons={comparisons}
+          comparisonsLoading={comparisonsLoading}
         />
 
-        <section className="mapPanel">
+        <div className="mapPanel">
+          {/** CTA: disable and show spinner until first computations finish */}
+          {(() => {
+            const analyzing = analyzeCommute && (isCommuteCalculating || comparisonsLoading)
+            return (
+              <motion.button
+                type="button"
+                className="main-cta"
+                onClick={() => setAnalyzeCommute(true)}
+                disabled={analyzing || analyzeCommute}
+                title={analyzeCommute ? 'Analiza włączona' : 'Rozpocznij analizę dojazdu i porównań'}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {analyzing ? <><span className="spinner" aria-hidden /> Analiza…</> : (analyzeCommute ? 'Analiza dojazdu włączona' : 'Start analizy dojazdu')}
+              </motion.button>
+            )
+          })()}
+
           <MapCanvas
-            center={mapCenter}
+            center={mapCenterCandidate ?? undefined}
             markers={markers}
             circles={circles}
+            height="70vh"
             geoJsonLayers={geoLayers}
-            className="map"
-            height="75vh"
           />
 
-          {/* Floating legend panel for quick layer toggles */}
-          <MapLegend
-            disabled={!mapCenter}
-            analysisRadius={analysisRadius}
-            onAnalysisRadiusChange={setAnalysisRadius}
-            greenRadius={greenRadius}
-            onGreenRadiusChange={setGreenRadius}
-            analyzeGreen={analyzeGreen}
-            onAnalyzeGreenChange={setAnalyzeGreen}
-            showDistricts={showDistricts}
-            onShowDistrictsChange={setShowDistricts}
-            showTraffic={showTraffic}
-            onShowTrafficChange={setShowTraffic}
-            trafficTime={trafficTime}
-            onTrafficTimeChange={setTrafficTime}
-            showSocialLife={showSocialLife}
-            onShowSocialLifeChange={setShowSocialLife}
-            showDistrictRhythm={showDistrictRhythm}
-            onShowDistrictRhythmChange={setShowDistrictRhythm}
-            showDigitalNoise={showDigitalNoise}
-            onShowDigitalNoiseChange={setShowDigitalNoise}
-            showLifeBalance={showLifeBalance}
-            onShowLifeBalanceChange={setShowLifeBalance}
-            showSocialAvailability={showSocialAvailability}
-            onShowSocialAvailabilityChange={setShowSocialAvailability}
-            showSafety={showSafety}
-            onShowSafetyChange={setShowSafety}
+          <CommuteSummary
+            commuteMode={commuteMode}
+            comparisons={comparisons}
+            comparisonsLoading={comparisonsLoading}
+            commuteInfo={commuteInfo}
           />
 
-          {/* Address tiles below map */}
-          <AddressCards home={home} work={work} frequent={frequent} />
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+            <AddressCards home={home ?? undefined} work={work ?? undefined} frequentList={frequentList.length ? frequentList : undefined} frequent={frequent ?? undefined} />
+          </motion.div>
 
-          {/* Suggestions */}
-          <Suggestions
-            suggestedDistricts={suggestedDistricts}
-            suggestedStreets={suggestedStreets}
-            selectedDistricts={selectedDistricts}
-            onToggleDistrict={(name) => setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])}
-            onAddStreetByName={addStreetByName}
-          />
-        </section>
-      </div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
+            <Suggestions
+              suggestedDistricts={suggestedDistricts}
+              selectedDistricts={selectedDistricts}
+              onToggleDistrict={(name: string) => setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])}
+              suggestedStreets={suggestedStreets}
+              onAddStreetByName={addStreetByName}
+            />
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.1 }}>
+            <MapLegend
+              disabled={!mapCenterCandidate}
+              analysisRadius={analysisRadius}
+              onAnalysisRadiusChange={setAnalysisRadius}
+              greenRadius={greenRadius}
+              onGreenRadiusChange={setGreenRadius}
+
+              analyzeGreen={analyzeGreen}
+              onAnalyzeGreenChange={setAnalyzeGreen}
+              showDistricts={showDistricts}
+              onShowDistrictsChange={setShowDistricts}
+
+              showTraffic={showTraffic}
+              onShowTrafficChange={setShowTraffic}
+              trafficTime={trafficTime}
+              onTrafficTimeChange={setTrafficTime}
+
+              showSocialLife={showSocialLife}
+              onShowSocialLifeChange={setShowSocialLife}
+              showDistrictRhythm={showDistrictRhythm}
+              onShowDistrictRhythmChange={setShowDistrictRhythm}
+              showDigitalNoise={showDigitalNoise}
+              onShowDigitalNoiseChange={setShowDigitalNoise}
+              showLifeBalance={showLifeBalance}
+              onShowLifeBalanceChange={setShowLifeBalance}
+              showSocialAvailability={showSocialAvailability}
+              onShowSocialAvailabilityChange={setShowSocialAvailability}
+              showSafety={showSafety}
+              onShowSafetyChange={setShowSafety}
+            />
+          </motion.div>
+        </div>
+      </main>
       <Footer />
     </div>
   )

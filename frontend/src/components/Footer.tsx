@@ -6,7 +6,7 @@ export default function Footer() {
 				<div className="footer-brand">
 					<div className="logo small" aria-hidden="true">
 						<a href="/">
-							<img src={new URL('../assets/logo.svg', import.meta.url).toString()} width={40} height={40}
+							<img src={new URL('../assets/logo_no_image.svg', import.meta.url).toString()} width={40} height={35}
 									 alt="Moveasy logo"/>
 						</a>
 					</div>
