@@ -11,7 +11,7 @@ variable "aks_name"           {
 
 variable "host"               {
   type = string
-  default = "<URL>"
+  default = "pipeline-idk.pl"
 }
 
 
