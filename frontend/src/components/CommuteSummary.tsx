@@ -45,11 +45,74 @@ function CountUp({ to, duration = 800, format = formatMins }: { to: number; dura
   return <span>{format(val)}</span>
 }
 
-function colorByMins(mins: number): string {
-  if (mins < 20) return '#4caf50' // green
-  if (mins <= 40) return '#ffd54f' // yellow
-  return '#e53935' // red
+// Helper: tiny badge style for header WORK/HOME indicator
+const headerBadgeBase: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  padding: '2px 8px',
+  marginLeft: 8,
+  borderRadius: 999,
+  fontSize: '0.75rem',
+  fontWeight: 900,
+  letterSpacing: '.4px',
+  color: 'var(--neutral-100)',
+  boxShadow: '0 6px 14px rgba(var(--shadow-rgb), .08), inset 0 0 0 1px rgba(var(--neutral-100-rgb), .08)'
 }
+
+function colorByMins(mins: number): string {
+  if (mins < 20) return 'var(--status-good)'
+  if (mins <= 40) return 'var(--status-medium)'
+  return 'var(--status-bad)'
+}
+
+// Inline fallback styles to ensure bars render even if CSS is overridden
+const trackStyleBase = {
+  position: 'relative',
+  height: 48,
+  borderRadius: 15,
+  background: 'rgba(var(--surface-1-rgb), .6)',
+  border: '1px solid var(--glass-border)',
+  overflow: 'hidden',
+  width: '100%',
+  padding: '4px 6px'
+} as const
+
+const barFillMiniBase = {
+  position: 'absolute' as const,
+  left: 0,
+  height: 10,
+  borderRadius: 999,
+  boxShadow: 'inset 0 0 0 1px rgba(var(--neutral-100-rgb), .08), 0 4px 10px rgba(var(--shadow-rgb), .15)'
+}
+
+const dualValuesStyle = {
+  position: 'absolute' as const,
+  inset: 0,
+  display: 'flex',
+  marginTop: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  pointerEvents: 'none' as const
+}
+
+const dotBaseStyle = { width: 10, height: 10, borderRadius: 999 } as const
+
+const badgeBaseStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '2px 8px',
+  borderRadius: 999,
+  fontSize: '0.8rem',
+  fontWeight: 900 as const,
+  letterSpacing: '.3px',
+  boxShadow: '0 6px 14px rgba(var(--shadow-rgb), .08), inset 0 0 0 1px rgba(var(--neutral-100-rgb), .08)',
+  WebkitBackdropFilter: 'blur(6px) saturate(130%)',
+  backdropFilter: 'blur(6px) saturate(130%)'
+} as const
 
 export default function CommuteSummary({ commuteMode, comparisons, comparisonsLoading, commuteInfo }: Props) {
   // Prepare sorted data: by smallest total (WORK + HOME) minutes; complete entries first
@@ -109,7 +172,18 @@ export default function CommuteSummary({ commuteMode, comparisons, comparisonsLo
           <div className="headline">
             {primary ? (
               <>
-                <span className="title">{primaryShowsWork ? 'Czas dojazdu do pracy' : 'Czas dojazdu do HOME'}</span>
+                <span className="title">
+                  {primaryShowsWork ? 'Czas dojazdu do pracy' : 'Czas dojazdu do HOME'}
+                  <span
+                    className={primaryShowsWork ? 'target-badge-work' : 'target-badge-home'}
+                    style={{
+                      ...headerBadgeBase,
+                      background: primaryShowsWork ? 'var(--accent-work)' : 'var(--accent-home)'
+                    }}
+                  >
+                    {primaryShowsWork ? 'WORK' : 'HOME'}
+                  </span>
+                </span>
                 <div className="value big">
                   <CountUp to={primaryShowsWork ? (primary.mins) : ((primary.homeMins as number) || 0)} />
                 </div>
@@ -124,7 +198,7 @@ export default function CommuteSummary({ commuteMode, comparisons, comparisonsLo
           <ModeBadge mode={commuteMode} />
         </div>
 
-        <div className="sub">Porównanie dojazdu (SPOT → WORK i SPOT → HOME)</div>
+        <div className="sub mt-10">Porównanie dojazdu (SPOT → WORK i SPOT → HOME)</div>
 
         <AnimatePresence initial={false}>
           {comparisonsLoading && (
@@ -139,8 +213,8 @@ export default function CommuteSummary({ commuteMode, comparisons, comparisonsLo
           <div className="bars" role="list">
             {sorted.map((c, idx) => {
               // Colors aligned to badges: WORK (blue), HOME (red)
-              const workColor = '#1e88e5'
-              const homeColor = '#e53935'
+              const workColor = 'var(--accent-work)'
+              const homeColor = 'var(--accent-home)'
               const active = primary && c.label === primary.label && idx === 0
 
               // Consistent scaling across all bars; no minimum width clamp
@@ -168,15 +242,19 @@ export default function CommuteSummary({ commuteMode, comparisons, comparisonsLo
                   transition={{ duration: 0.3, delay: idx * 0.05 }}
                 >
                   <div className="bar-label">
-                    <span className="dot" aria-hidden style={{ backgroundColor: colorByMins(Number.isFinite(c.mins) ? (c.mins as number) : ((c.homeMins as number) || 0)), boxShadow: `0 0 10px ${colorByMins(Number.isFinite(c.mins) ? (c.mins as number) : ((c.homeMins as number) || 0))}` }} />
+                    <span
+                      className="dot"
+                      aria-hidden
+                      style={{ ...dotBaseStyle, backgroundColor: colorByMins(Number.isFinite(c.mins) ? (c.mins as number) : ((c.homeMins as number) || 0)), boxShadow: `0 0 6px ${colorByMins(Number.isFinite(c.mins) ? (c.mins as number) : ((c.homeMins as number) || 0))}` }}
+                    />
                     <span className="label-text" title={c.label}>{displayLabel}</span>
                   </div>
 
-                  <div className="bar-track bar-dual">
+                  <div className="bar-track bar-dual" style={trackStyleBase}>
                     {Number.isFinite(c.mins) && (
                       <motion.div
                         className="bar-fill mini work"
-                        style={{ background: workColor }}
+                        style={{ ...barFillMiniBase, top: 0, background: workColor }}
                         initial={{ width: 0 }}
                         animate={{ width: `${workWidth}%` }}
                         transition={{ duration: 0.5, delay: 0.1 + idx * 0.04 }}
@@ -185,16 +263,40 @@ export default function CommuteSummary({ commuteMode, comparisons, comparisonsLo
                     {Number.isFinite(c.homeMins ?? NaN) && (
                       <motion.div
                         className="bar-fill mini home"
-                        style={{ background: homeColor }}
+                        style={{ ...barFillMiniBase, top: 10, background: homeColor }}
                         initial={{ width: 0 }}
                         animate={{ width: `${homeWidth}%` }}
                         transition={{ duration: 0.5, delay: 0.12 + idx * 0.04 }}
                       />
                     )}
 
-                    <div className="bar-dual-values">
-                      {Number.isFinite(c.mins) && <span className="badge badge-work">WORK ~{formatMins(c.mins)}</span>}
-                      {Number.isFinite(c.homeMins ?? NaN) && <span className="badge badge-home">HOME ~{formatMins(c.homeMins as number)}</span>}
+                    <div className="bar-dual-values" style={dualValuesStyle}>
+                      {Number.isFinite(c.mins) && (
+                        <span
+                          className="badge badge-work"
+                          style={{
+                            ...badgeBaseStyle,
+                            color: 'var(--neutral-100)',
+                            background: 'var(--accent-work)',
+                            border: '1px solid rgba(var(--neutral-100-rgb), .12)'
+                          }}
+                        >
+                          WORK ~{formatMins(c.mins)}
+                        </span>
+                      )}
+                      {Number.isFinite(c.homeMins ?? NaN) && (
+                        <span
+                          className="badge badge-home"
+                          style={{
+                            ...badgeBaseStyle,
+                            color: 'var(--neutral-100)',
+                            background: 'var(--accent-home)',
+                            border: '1px solid rgba(var(--neutral-100-rgb), .12)'
+                          }}
+                        >
+                          HOME ~{formatMins(c.homeMins as number)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </motion.div>

@@ -3,6 +3,7 @@ import L from 'leaflet'
 import type { LatLngExpression, Map as LeafletMap } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import { themeColors } from '../styles/theme'
 
 export type MarkerSpec = {
   id: string
@@ -138,29 +139,35 @@ export default function MapCanvas({
       const key = m.id
       const pos: LatLngExpression = [m.position.lat, m.position.lng]
       const tooltipClass = `marker-tooltip marker-${m.id}`
+      const popupClass = `marker-popup marker-${m.id}`
       const isSpot = m.id === 'frequent' || m.id.startsWith('frequent-')
       const effectiveLabel = isSpot ? (spotLabelById[m.id] ?? 'SPOT') : (m.label || '')
 
+      const bgColor = m.color ?? (m.id === 'home' ? themeColors.accentHome() : m.id === 'work' ? themeColors.accentWork() : themeColors.accentFrequent())
+      const icon = L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="background:${bgColor};width:12px;height:12px;border:2px solid ${themeColors.neutralWhite()};border-radius:50%"></div>`
+      })
+
       if (!markersRef.current[key]) {
-        const icon = L.divIcon({
-          className: 'custom-marker',
-          html: `<div style="background:${m.color ?? '#2e7d32'};width:12px;height:12px;border:2px solid white;border-radius:50%"></div>`
-        })
         const mk = L.marker(pos, { icon }).addTo(map)
         // Always show tooltip for SPOTs; for others, show if label provided
         if (isSpot || m.label) {
-          mk.bindPopup(effectiveLabel)
+          // Ensure popup gets themed class to avoid white background
+          mk.bindPopup(effectiveLabel, { className: popupClass })
           mk.bindTooltip(effectiveLabel, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
         }
         markersRef.current[key] = mk
       } else {
         const mk = markersRef.current[key]
         mk.setLatLng(pos)
+        ;(mk as any).setIcon?.(icon)
         if (isSpot || m.label) {
-          if ((mk as any).getPopup && mk.getPopup()) (mk.getPopup() as any).setContent(effectiveLabel)
-          else mk.bindPopup(effectiveLabel)
-          if ((mk as any).getTooltip && mk.getTooltip()) (mk.getTooltip() as any).setContent(effectiveLabel)
-          else mk.bindTooltip(effectiveLabel, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
+          // Rebind popup/tooltip to ensure classes are applied even after updates
+          try { (mk as any).unbindPopup?.() } catch {}
+          mk.bindPopup(effectiveLabel, { className: popupClass })
+          try { (mk as any).unbindTooltip?.() } catch {}
+          mk.bindTooltip(effectiveLabel, { permanent: true, direction: 'top', offset: L.point(0, -10), className: tooltipClass })
         }
       }
     })
@@ -233,12 +240,13 @@ export default function MapCanvas({
     polylines.forEach((p) => {
       const key = p.id
       const latlngs: LatLngExpression[] = p.positions.map((pt) => [pt.lat, pt.lng])
+      const color = p.color ?? themeColors.accentWork()
       if (!polylinesRef.current[key]) {
-        const ln = L.polyline(latlngs, { color: p.color ?? '#1976d2', weight: 4, opacity: 0.7 }).addTo(map)
+        const ln = L.polyline(latlngs, { color, weight: 4, opacity: 0.7 }).addTo(map)
         polylinesRef.current[key] = ln
       } else {
         polylinesRef.current[key].setLatLngs(latlngs)
-        polylinesRef.current[key].setStyle({ color: p.color ?? '#1976d2' })
+        polylinesRef.current[key].setStyle({ color })
       }
     })
   }, [polylines])
@@ -261,8 +269,8 @@ export default function MapCanvas({
       const center: LatLngExpression = [c.center.lat, c.center.lng]
       const style: L.CircleMarkerOptions = {
         radius: c.radiusMeters,
-        color: c.color ?? '#2e7d32',
-        fillColor: c.fillColor ?? '#66bb6a',
+        color: c.color ?? themeColors.accentGreen(),
+        fillColor: c.fillColor ?? themeColors.accentGreenFill(),
         opacity: c.opacity ?? 0.8,
         fillOpacity: c.fillOpacity ?? 0.2,
         weight: c.weight ?? 2,
@@ -274,14 +282,7 @@ export default function MapCanvas({
       } else {
         circlesRef.current[key].setLatLng(center)
         circlesRef.current[key].setRadius(c.radiusMeters)
-        circlesRef.current[key].setStyle({
-          color: c.color ?? '#2e7d32',
-          fillColor: c.fillColor ?? '#66bb6a',
-          opacity: c.opacity ?? 0.8,
-          fillOpacity: c.fillOpacity ?? 0.2,
-          weight: c.weight ?? 2,
-          dashArray: c.dashArray as any,
-        } as any)
+        circlesRef.current[key].setStyle(style as any)
       }
     })
   }, [circles])
@@ -301,27 +302,31 @@ export default function MapCanvas({
 
     geoJsonLayers.forEach((g) => {
       const key = g.id
+      const style = (g.style as any) ?? { color: themeColors.accentIso(), weight: 2, fillOpacity: 0.15 }
       if (!geoJsonRef.current[key]) {
-        const layer = L.geoJSON(g.data as any, {
-          style: (g.style as any) ?? { color: '#ff6f00', weight: 2, fillOpacity: 0.15 },
-          onEachFeature: g.onEachFeature as any,
-          pointToLayer: g.pointToLayer as any,
-        }).addTo(map)
+        const layer = L.geoJSON(g.data as any, { style, onEachFeature: g.onEachFeature, pointToLayer: g.pointToLayer })
+        layer.addTo(map)
         geoJsonRef.current[key] = layer
       } else {
         const layer = geoJsonRef.current[key]
         layer.clearLayers()
         layer.addData(g.data as any)
-        if (g.style) (layer as any).setStyle(g.style as any)
-        if (g.onEachFeature) {
-          // Re-apply handlers by iterating layers
-          (layer as any).eachLayer((l: any) => {
-            if (l.feature) g.onEachFeature!(l.feature, l)
-          })
-        }
+        ;(layer as any).setStyle?.(style)
       }
     })
   }, [geoJsonLayers])
 
-  return <div ref={containerRef} className={className} style={{ width: '100%', height }} />
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{
+        height,
+        borderRadius: '25px',
+        // Use theme variables for a subtle, light purple outline
+        border: '3px solid rgba(var(--primary-100-rgb), 0.8)',
+        overflow: 'hidden',
+      }}
+    />
+  )
 }
