@@ -14,9 +14,27 @@ services:
     volumes:
       - ./:/backend/
     networks:
+      - db_network
       - hack_and_play_network
+
+  db:
+    image: postgres:16.0
+    env_file:
+      - ../envs/backend/db.env
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    restart: on-failure
+    networks:
+      - db_network
 
 
 networks:
+  db_network:
+    driver: bridge
   hack_and_play_network:
     name: hack_and_play_network
+
+volumes:
+  db_volume:
