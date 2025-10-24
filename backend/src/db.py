@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import get_settings
-
+import ssl
 
 settings = get_settings()
 
@@ -14,11 +14,13 @@ settings = get_settings()
 class Base(DeclarativeBase):
     __allow_unmapped__ = True
 
-
+ssl_ctx = ssl.create_default_context()
 engine = create_async_engine(
     settings.DB.url_async,
     echo=settings.DEBUG,
     pool_pre_ping=True,
+    connect_args={"ssl": ssl_ctx},
+
 )
 
 AsyncSessionLocal = async_sessionmaker(

@@ -32,7 +32,7 @@ class DatabaseSettings(BaseSettings):
     def url_async(self) -> str:
         return (
             f"postgresql+asyncpg://{quote_plus(self.USER)}:{quote_plus(self.PASSWORD)}"
-            f"@{self.HOST}:{self.PORT}/{self.NAME}?ssl=true"
+            f"@{self.HOST}:{self.PORT}/{self.NAME}"
         )
 
 
