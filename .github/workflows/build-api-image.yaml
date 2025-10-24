@@ -1,0 +1,45 @@
+name: build-and-push
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on:
+      - self-hosted
+      - aks
+      - aks-runners
+    permissions:
+      contents: read
+    env:
+      IMAGE: api
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to Scaleway Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: nologin
+          password: ${{ secrets.SCW_SECRET_KEY }}
+
+      - name: Build and push (backend/Dockerfile)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:${{ env.TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:buildcache,mode=max
+
+      - name: Tag latest (only main)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          docker build -f backend/Dockerfile -t $REGISTRY/$NAMESPACE/$IMAGE:latest backend
+          docker push $REGISTRY/$NAMESPACE/$IMAGE:latest
