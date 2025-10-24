@@ -1,0 +1,22 @@
+name: api
+
+services:
+  api:
+    build:
+      context: .
+    restart: on-failure
+    working_dir: /backend
+    ports:
+      - "5001:5001"
+    environment:
+      - ROOT_PATH=/
+      - DEBUG=TRUE
+    volumes:
+      - ./:/backend/
+    networks:
+      - hack_and_play_network
+
+
+networks:
+  hack_and_play_network:
+    name: hack_and_play_network
