@@ -3,7 +3,11 @@ import './App.css'
 import MapCanvas, { type CircleSpec, type MarkerSpec } from './components/MapCanvas'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { fetchIsochronesORS, fetchOSRMRoute, fetchOverpassGreenAreas, fetchWarsawDistricts, fetchStreetByNameInWarsaw, fetchNearbyNamedStreets } from './lib/api'
-import AddressAutocomplete from './components/AddressAutocomplete'
+import Sidebar from './components/Sidebar'
+import AddressCards from './components/AddressCards'
+import Suggestions from './components/Suggestions'
+import TopBar from './components/TopBar'
+import Footer from './components/Footer'
 
 // Tiny geocoder using OpenStreetMap Nominatim (public demo; keep requests light)
 async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -395,246 +399,95 @@ function App() {
     setHighlightedStreets((prev) => prev.filter((s) => s.name !== name))
   }, [])
 
+  const addStreetByName = useCallback(async (name: string) => {
+    const fc = await fetchStreetByNameInWarsaw(name)
+    if (fc && (fc.features?.length ?? 0) > 0) {
+      setHighlightedStreets((prev) => prev.some((p) => p.name.toLowerCase() === name.toLowerCase()) ? prev : [...prev, { name, data: fc }])
+    }
+  }, [])
+
+  const homeLabel = home ? (home.label ?? `${home.lat.toFixed(5)}, ${home.lng.toFixed(5)}`) : null
+
   return (
-    <div className="app">
-      <aside className="sidebar glass purple">
-        <h2 className="title">🔎 Wyszukaj lokalizację</h2>
-        <div className="stack">
-          <div className="field">
-            <label className="label">🏠 Adres bazowy</label>
-            <div className="field-row nowrap">
-              <AddressAutocomplete
-                placeholder="np. Marszałkowska 1, Warszawa"
-                value={homeQuery}
-                onChange={setHomeQuery}
-                onSelect={(s) => { setHome({ lat: s.lat, lng: s.lng, label: s.label }); setHomeQuery(s.label) }}
-              />
-              <button onClick={searchHome} className="btn primary">Szukaj</button>
-            </div>
-          </div>
-          {home && (
-            <p className="hint">Wybrana lokalizacja: {home.label ?? `${home.lat.toFixed(5)}, ${home.lng.toFixed(5)}`}</p>
-          )}
-        </div>
+    <div className="page">
+      <TopBar />
+      <div className="app">
+        <Sidebar
+          homeQuery={homeQuery}
+          onHomeQueryChange={setHomeQuery}
+          onHomeSelect={(s) => { setHome({ lat: s.lat, lng: s.lng, label: s.label }); setHomeQuery(s.label) }}
+          onHomeSearch={searchHome}
+          homeLabel={homeLabel}
 
-        <details className="section" open>
-          <summary>➕ Opcjonalne</summary>
-          <div className="stack">
-            <div className="field">
-              <label className="label">💼 Adres Pracy / Uczelni</label>
-              <div className="field-row nowrap">
-                <AddressAutocomplete
-                  placeholder="np. Aleje Jerozolimskie 123, Warszawa"
-                  value={workQuery}
-                  onChange={setWorkQuery}
-                  onSelect={(s) => { setWork({ lat: s.lat, lng: s.lng, label: s.label }); setWorkQuery(s.label) }}
-                />
-                <button onClick={searchWork} className="btn">Dodaj</button>
-              </div>
-            </div>
+          workQuery={workQuery}
+          onWorkQueryChange={setWorkQuery}
+          onWorkSelect={(s) => { setWork({ lat: s.lat, lng: s.lng, label: s.label }); setWorkQuery(s.label) }}
+          onWorkSearch={searchWork}
 
-            <div className="field">
-              <label className="label">📍 Często odwiedzana lokalizacja</label>
-              <div className="field-row nowrap">
-                <AddressAutocomplete
-                  placeholder="np. dom rodziny, ulubione miejsce"
-                  value={frequentQuery}
-                  onChange={setFrequentQuery}
-                  onSelect={(s) => { setFrequent({ lat: s.lat, lng: s.lng, label: s.label }); setFrequentQuery(s.label) }}
-                />
-                <button onClick={searchFrequent} className="btn">Dodaj</button>
-              </div>
-            </div>
-          </div>
-        </details>
+          frequentQuery={frequentQuery}
+          onFrequentQueryChange={setFrequentQuery}
+          onFrequentSelect={(s) => { setFrequent({ lat: s.lat, lng: s.lng, label: s.label }); setFrequentQuery(s.label) }}
+          onFrequentSearch={searchFrequent}
 
-        <details className="section" open>
-          <summary>🎛️ Filtry</summary>
-          <div className="stack">
-            <label className="checkbox left">
-              <input type="checkbox" checked={analyzeCommute} onChange={(e) => setAnalyzeCommute(e.target.checked)} />
-              <span>⏱️ Analiza czasu dojazdu</span>
-            </label>
-            {analyzeCommute && (
-              <div className="grid-2">
-                <div>
-                  <label className="label">Tryb</label>
-                  <select value={commuteMode} onChange={(e) => setCommuteMode(e.target.value as any)}>
-                    <option value="car">Samochód</option>
-                    <option value="transit">Komunikacja</option>
-                    <option value="bike">Rower</option>
-                    <option value="walk">Pieszo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Maks. czas (min)</label>
-                  <input type="number" min={5} max={120} value={commuteMaxMins} onChange={(e) => setCommuteMaxMins(Number(e.target.value))} />
-                </div>
-              </div>
-            )}
+          analyzeCommute={analyzeCommute}
+          onAnalyzeCommuteChange={setAnalyzeCommute}
+          commuteMode={commuteMode}
+          onCommuteModeChange={setCommuteMode}
+          commuteMaxMins={commuteMaxMins}
+          onCommuteMaxMinsChange={setCommuteMaxMins}
 
-            <label className="checkbox left">
-              <input type="checkbox" checked={considerChild} onChange={(e) => setConsiderChild(e.target.checked)} />
-              <span>👶 Czy uwzględnić dziecko?</span>
-            </label>
-            {considerChild && (
-              <div className="field">
-                <label className="label">Jaki wiek?</label>
-                <input type="number" min={0} max={18} value={childAge} onChange={(e) => setChildAge(e.target.value === '' ? '' : Number(e.target.value))} />
-              </div>
-            )}
+          considerChild={considerChild}
+          onConsiderChildChange={setConsiderChild}
+          childAge={childAge}
+          onChildAgeChange={setChildAge}
 
-            <label className="checkbox left">
-              <input type="checkbox" checked={hasPets} onChange={(e) => setHasPets(e.target.checked)} />
-              <span>🐾 Zwierzęta</span>
-            </label>
+          hasPets={hasPets}
+          onHasPetsChange={setHasPets}
 
-            <label className="checkbox left">
-              <input type="checkbox" checked={analyzeGreen} onChange={(e) => setAnalyzeGreen(e.target.checked)} />
-              <span>🌳 Analiza "zielonych miejsc" w okolicy</span>
-            </label>
-            {analyzeGreen && (
-              <div className="field">
-                <label className="label">Promień analizy (m)</label>
-                <input type="range" min={200} max={5000} step={100} value={greenRadius} onChange={(e) => setGreenRadius(Number(e.target.value))} />
-                <div className="hint">{greenRadius} m</div>
-              </div>
-            )}
+          analyzeGreen={analyzeGreen}
+          onAnalyzeGreenChange={setAnalyzeGreen}
+          greenRadius={greenRadius}
+          onGreenRadiusChange={setGreenRadius}
 
-            <label className="checkbox left">
-              <input type="checkbox" checked={showDistricts} onChange={(e) => setShowDistricts(e.target.checked)} />
-              <span>🗺️ Podświetl/Ukryj dzielnice Warszawy</span>
-            </label>
-            {showDistricts && (
-              <div className="field">
-                <label className="label">Wybierz dzielnice do wyróżnienia</label>
-                <div className="district-list">
-                  {districtNames.length ? (
-                    districtNames.map((name) => (
-                      <label className="checkbox left" key={name}>
-                        <input
-                          type="checkbox"
-                          checked={selectedDistricts.includes(name)}
-                          onChange={(e) => {
-                            setSelectedDistricts((prev) => e.target.checked ? [...prev, name] : prev.filter((n) => n !== name))
-                          }}
-                        />
-                        <span>{name}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <div className="hint small">Ładowanie dzielnic…</div>
-                  )}
-                </div>
-              </div>
-            )}
+          showDistricts={showDistricts}
+          onShowDistrictsChange={setShowDistricts}
+          districtNames={districtNames}
+          selectedDistricts={selectedDistricts}
+          onToggleDistrict={(name, checked) => setSelectedDistricts((prev) => checked ? [...prev, name] : prev.filter((n) => n !== name))}
 
-            <div className="field">
-              <label className="label">🚦 Wyróżnij ulicę (Warszawa)</label>
-              <div className="field-row nowrap">
-                <input
-                  placeholder="np. Puławska"
-                  value={streetQuery}
-                  onChange={(e) => setStreetQuery(e.target.value)}
-                />
-                <button className="btn" onClick={handleAddStreet}>Dodaj</button>
-              </div>
-              {highlightedStreets.length > 0 && (
-                <div className="stack">
-                  {highlightedStreets.map((s) => (
-                    <div className="chip" key={s.name}>
-                      <span>{s.name}</span>
-                      <button className="chip-remove" onClick={() => removeHighlightedStreet(s.name)}>×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </details>
+          streetQuery={streetQuery}
+          onStreetQueryChange={setStreetQuery}
+          highlightedStreets={highlightedStreets}
+          onAddStreet={handleAddStreet}
+          onRemoveHighlightedStreet={removeHighlightedStreet}
 
-        {commuteInfo && <p className="hint">{commuteInfo}</p>}
-      </aside>
-
-      <section className="mapPanel">
-        <MapCanvas
-          center={mapCenter}
-          markers={markers}
-          circles={circles}
-          geoJsonLayers={geoLayers}
-          className="map"
-          height="75vh"
+          commuteInfo={commuteInfo}
         />
 
-        {/* Address tiles below map */}
-        <div className="address-cards">
-          {home && (
-            <div className="address-card">
-              <div className="badge" style={{ background: '#e53935' }}>HOME</div>
-              <div className="big">{home.label ?? 'Lokalizacja bazowa'}</div>
-              <div className="muted">{home.lat.toFixed(5)}, {home.lng.toFixed(5)}</div>
-            </div>
-          )}
-          {work && (
-            <div className="address-card">
-              <div className="badge" style={{ background: '#1e88e5' }}>WORK</div>
-              <div className="big">{work.label ?? 'Praca/Uczelnia'}</div>
-              <div className="muted">{work.lat.toFixed(5)}, {work.lng.toFixed(5)}</div>
-            </div>
-          )}
-          {frequent && (
-            <div className="address-card">
-              <div className="badge" style={{ background: '#8e24aa' }}>SPOT</div>
-              <div className="big">{frequent.label ?? 'Często odwiedzana'}</div>
-              <div className="muted">{frequent.lat.toFixed(5)}, {frequent.lng.toFixed(5)}</div>
-            </div>
-          )}
-        </div>
+        <section className="mapPanel">
+          <MapCanvas
+            center={mapCenter}
+            markers={markers}
+            circles={circles}
+            geoJsonLayers={geoLayers}
+            className="map"
+            height="75vh"
+          />
 
-        {/* Suggestions */}
-        {(suggestedDistricts.length > 0 || suggestedStreets.length > 0) && (
-          <div className="suggestions">
-            <h3 className="title">💡 Sugestie w okolicy</h3>
-            {suggestedDistricts.length > 0 && (
-              <div className="suggest-group">
-                <div className="label">Dzielnice w pobliżu</div>
-                <div className="chip-row">
-                  {suggestedDistricts.map((name) => (
-                    <button
-                      key={name}
-                      className={"chip" + (selectedDistricts.includes(name) ? ' active' : '')}
-                      onClick={() => setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {suggestedStreets.length > 0 && (
-              <div className="suggest-group">
-                <div className="label">Ulice w pobliżu</div>
-                <div className="chip-row">
-                  {suggestedStreets.map((name) => (
-                    <button
-                      key={name}
-                      className="chip"
-                      onClick={async () => {
-                        const fc = await fetchStreetByNameInWarsaw(name)
-                        if (fc && (fc.features?.length ?? 0) > 0) {
-                          setHighlightedStreets((prev) => prev.some((p) => p.name.toLowerCase() === name.toLowerCase()) ? prev : [...prev, { name, data: fc }])
-                        }
-                      }}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+          {/* Address tiles below map */}
+          <AddressCards home={home} work={work} frequent={frequent} />
+
+          {/* Suggestions */}
+          <Suggestions
+            suggestedDistricts={suggestedDistricts}
+            suggestedStreets={suggestedStreets}
+            selectedDistricts={selectedDistricts}
+            onToggleDistrict={(name) => setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])}
+            onAddStreetByName={addStreetByName}
+          />
+        </section>
+      </div>
+      <Footer />
     </div>
   )
 }

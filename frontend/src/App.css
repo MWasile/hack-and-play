@@ -6,6 +6,56 @@
     padding: 0;
 }
 
+/* Page layout wrapper to stack header, main grid, footer */
+.page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* TopBar */
+.topbar {
+    position: relative;
+    z-index: 5;
+    width: 100%;
+    border-bottom: 1px solid rgba(155, 135, 245, 0.25);
+    background: linear-gradient(180deg, rgba(96, 52, 255, 0.22), rgba(22, 12, 62, 0.35)), rgba(14, 8, 40, 0.55);
+    box-shadow: 0 10px 22px rgba(122, 89, 255, 0.18);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    height: 70px;
+    margin-bottom: 1.5rem;
+}
+.topbar-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* center brand */
+}
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.logo {
+    display: grid;
+    place-items: center;
+    width: 70px;
+    height: 70px;
+    background: #fff;
+    border-radius: 999px; /* round */
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(122, 89, 255, 0.3);
+    border: 4px solid rgba(155, 135, 245, 0.35);
+}
+.brand .brand-name {
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    font-size: 1.25rem;
+}
+
 /* App layout */
 .app {
     display: grid;
@@ -419,4 +469,54 @@
 .center-buttons .center-btn.frequent { color: #e1bee7; text-shadow: 0 0 6px rgba(142,36,170,0.8) }
 .center-buttons .center-btn:hover {
     background: rgba(122, 89, 255, 0.18);
+}
+
+/* Footer */
+.footer {
+    margin-top: auto;
+    border-top: 1px solid rgba(155, 135, 245, 0.25);
+    background: linear-gradient(180deg, rgba(14, 8, 40, 0.6), rgba(14, 8, 40, 0.75));
+    box-shadow: 0 -10px 22px rgba(20, 10, 60, 0.28);
+}
+.footer-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+    text-align: center;
+}
+.footer-brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.footer-brand .logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.footer-brand .brand-name {
+    font-weight: 800;
+}
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem 1rem;
+}
+.footer-links a {
+    color: #d9c7ff;
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+}
+.footer-links a:hover {
+    border-color: rgba(155, 135, 245, 0.45);
+}
+.footer-copy {
+    opacity: 0.85;
+    font-size: 0.9rem;
 }
