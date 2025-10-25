@@ -422,7 +422,7 @@ export default function Sidebar(props: Props & { insightsData?: InsightDatum[] }
             </div>
             <div className="section card">
               <div className="stack">
-                <p className="hint">Prezentacja wskaźników dla okolicy (mockowane dane):</p>
+                <p className="hint">Prezentacja wskaźników dla okolicy:</p>
                 <InsightsChart data={props.insightsData} />
               </div>
             </div>
