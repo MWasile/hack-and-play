@@ -137,7 +137,7 @@ export default function InsightsChart({ data: input }: { data?: InsightDatum[] }
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 8, right: 25, bottom: 8, left: 10 }}
+          margin={{ top: 8, right: 65, bottom: 8, left: -20 }}
           barCategoryGap={10}
         >
           <defs>
