@@ -12,7 +12,7 @@ import TopBar from './components/TopBar'
 import Footer from './components/Footer'
 import MapLegend from './components/MapLegend'
 import CommuteSummary from './components/CommuteSummary'
-import { motion } from 'framer-motion'
+// import { motion } from 'framer-motion' // no direct usage after moving CTA to Sidebar
 import { themeColors } from './styles/theme'
 import Reveal from './components/Reveal'
 
@@ -955,7 +955,7 @@ function App() {
     <div className="page">
       <TopBar />
       <main className="app">
-        <Reveal y={10} duration={0.45}>
+        <Reveal y={10} duration={0.45} delay={0}>
           <Sidebar
             homeQuery={homeQuery}
             onHomeQueryChange={setHomeQuery}
@@ -1014,97 +1014,87 @@ function App() {
             commuteInfo={commuteInfo}
             comparisons={comparisons}
             comparisonsLoading={comparisonsLoading}
+            isCommuteCalculating={isCommuteCalculating}
             insightsData={insightsData}
           />
         </Reveal>
 
         <div className="mapPanel">
-          {/** CTA: disable and show spinner until first computations finish */}
-          {(() => {
-            const analyzing = analyzeCommute && (isCommuteCalculating || comparisonsLoading)
-            return (
-              <motion.button
-                type="button"
-                className="main-cta"
-                onClick={() => setAnalyzeCommute(true)}
-                disabled={analyzing || analyzeCommute}
-                title={analyzeCommute ? 'Analiza włączona' : 'Rozpocznij analizę dojazdu i porównań'}
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {analyzing ? <><span className="spinner" aria-hidden /> Analiza…</> : (analyzeCommute ? 'Analiza dojazdu włączona' : 'Start analizy dojazdu')}
-              </motion.button>
-            )
-          })()}
-
-          <Reveal y={14} duration={0.5}>
+          <Reveal y={14} duration={0.5} delay={0.15}>
             <MapCanvas
               center={mapCenterCandidate ?? undefined}
               markers={markers}
               circles={circles}
-              height="70vh"
+              height="60vh"
               geoJsonLayers={geoLayers}
             />
           </Reveal>
 
-          <CommuteSummary
-            commuteMode={commuteMode}
-            comparisons={comparisons}
-            comparisonsLoading={comparisonsLoading}
-            commuteInfo={commuteInfo}
-          />
-
-          <div>
-            <AddressCards home={home ?? undefined} work={work ?? undefined} frequentList={frequentList.length ? frequentList : undefined} frequent={frequent ?? undefined} />
-          </div>
-
-          <div>
-            <Suggestions
-              suggestedDistricts={suggestedDistricts}
-              selectedDistricts={selectedDistricts}
-              onToggleDistrict={(name: string) => {
-                // Ensure districts layer is visible when using chips
-                setShowDistricts(true)
-                setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])
-              }}
-              suggestedStreets={suggestedStreets}
-              onAddStreetByName={addStreetByName}
+          <Reveal y={10} duration={0.4} delay={0.3}>
+            <CommuteSummary
+              commuteMode={commuteMode}
+              comparisons={comparisons}
+              comparisonsLoading={comparisonsLoading}
+              commuteInfo={commuteInfo}
             />
-          </div>
+          </Reveal>
 
-          <div>
-            <MapLegend
-              disabled={!mapCenterCandidate}
-              analysisRadius={analysisRadius}
-              onAnalysisRadiusChange={setAnalysisRadius}
-              greenRadius={greenRadius}
-              onGreenRadiusChange={setGreenRadius}
+          <Reveal y={10} duration={0.4} delay={0.45}>
+            <div>
+              <AddressCards home={home ?? undefined} work={work ?? undefined} frequentList={frequentList.length ? frequentList : undefined} frequent={frequent ?? undefined} />
+            </div>
+          </Reveal>
 
-              analyzeGreen={analyzeGreen}
-              onAnalyzeGreenChange={setAnalyzeGreen}
-              showDistricts={showDistricts}
-              onShowDistrictsChange={setShowDistricts}
+          <Reveal y={10} duration={0.4} delay={0.6}>
+            <div>
+              <Suggestions
+                suggestedDistricts={suggestedDistricts}
+                selectedDistricts={selectedDistricts}
+                onToggleDistrict={(name: string) => {
+                  // Ensure districts layer is visible when using chips
+                  setShowDistricts(true)
+                  setSelectedDistricts((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name])
+                }}
+                suggestedStreets={suggestedStreets}
+                onAddStreetByName={addStreetByName}
+              />
+            </div>
+          </Reveal>
 
-              showTraffic={showTraffic}
-              onShowTrafficChange={setShowTraffic}
-              trafficTime={trafficTime}
-              onTrafficTimeChange={setTrafficTime}
+          <Reveal y={10} duration={0.4} delay={0.75}>
+            <div>
+              <MapLegend
+                disabled={!mapCenterCandidate}
+                analysisRadius={analysisRadius}
+                onAnalysisRadiusChange={setAnalysisRadius}
+                greenRadius={greenRadius}
+                onGreenRadiusChange={setGreenRadius}
 
-              showSocialLife={showSocialLife}
-              onShowSocialLifeChange={setShowSocialLife}
-              showDistrictRhythm={showDistrictRhythm}
-              onShowDistrictRhythmChange={setShowDistrictRhythm}
-              showDigitalNoise={showDigitalNoise}
-              onShowDigitalNoiseChange={setShowDigitalNoise}
-              showLifeBalance={showLifeBalance}
-              onShowLifeBalanceChange={setShowLifeBalance}
-              showSocialAvailability={showSocialAvailability}
-              onShowSocialAvailabilityChange={setShowSocialAvailability}
-              showSafety={showSafety}
-              onShowSafetyChange={setShowSafety}
-            />
-          </div>
+                analyzeGreen={analyzeGreen}
+                onAnalyzeGreenChange={setAnalyzeGreen}
+                showDistricts={showDistricts}
+                onShowDistrictsChange={setShowDistricts}
+
+                showTraffic={showTraffic}
+                onShowTrafficChange={setShowTraffic}
+                trafficTime={trafficTime}
+                onTrafficTimeChange={setTrafficTime}
+
+                showSocialLife={showSocialLife}
+                onShowSocialLifeChange={setShowSocialLife}
+                showDistrictRhythm={showDistrictRhythm}
+                onShowDistrictRhythmChange={setShowDistrictRhythm}
+                showDigitalNoise={showDigitalNoise}
+                onShowDigitalNoiseChange={setShowDigitalNoise}
+                showLifeBalance={showLifeBalance}
+                onShowLifeBalanceChange={setShowLifeBalance}
+                showSocialAvailability={showSocialAvailability}
+                onShowSocialAvailabilityChange={setShowSocialAvailability}
+                showSafety={showSafety}
+                onShowSafetyChange={setShowSafety}
+              />
+            </div>
+          </Reveal>
         </div>
       </main>
       <Footer />

@@ -70,6 +70,8 @@ interface Props {
   commuteInfo?: string
   comparisons?: Array<{ label: string; mins: number; distanceMeters?: number }>
   comparisonsLoading?: boolean
+  // Loading flags for CTA
+  isCommuteCalculating?: boolean
 }
 
 export default function Sidebar(props: Props & { insightsData?: InsightDatum[] }) {
@@ -83,6 +85,7 @@ export default function Sidebar(props: Props & { insightsData?: InsightDatum[] }
     hasPets, onHasPetsChange,
     showDistricts, districtNames, selectedDistricts, onToggleDistrict,
     streetQuery, onStreetQueryChange, highlightedStreets, onAddStreet, onRemoveHighlightedStreet, onAddStreets,
+    comparisonsLoading, isCommuteCalculating,
   } = props
 
   const [flipped, setFlipped] = useState(false)
@@ -251,6 +254,22 @@ export default function Sidebar(props: Props & { insightsData?: InsightDatum[] }
                     <span>Analiza czasu dojazdu</span>
                   </span>
                 </label>
+
+                {(() => {
+                  const analyzing = analyzeCommute && ((isCommuteCalculating ?? false) || (comparisonsLoading ?? false))
+                  return (
+                    <motion.button
+                      type="button"
+                      className="main-cta"
+                      onClick={() => onAnalyzeCommuteChange(true)}
+                      disabled={analyzing || analyzeCommute}
+                      title={analyzeCommute ? 'Analiza włączona' : 'Rozpocznij analizę dojazdu i porównań'}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {analyzing ? <><span className="spinner" aria-hidden /> Analiza…</> : (analyzeCommute ? 'Analiza dojazdu włączona' : 'Start analizy dojazdu')}
+                    </motion.button>
+                  )
+                })()}
 
                 {analyzeCommute && (
                   <div className="stack">

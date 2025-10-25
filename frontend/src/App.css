@@ -450,6 +450,33 @@
     box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.12);
 }
 
+/* Initial intro animation for map: scale down → up, rotate, and border radius morph */
+.map-intro-anim {
+    animation: MapIntro 1.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: center;
+}
+
+@keyframes MapIntro {
+    0% {
+        transform: scale(0.72) rotate(-3deg);
+        filter: saturate(0.9) contrast(0.88);
+    }
+    35% {
+        transform: scale(0.88) rotate(3deg);
+    }
+    70% {
+        transform: scale(1.05) rotate(-2deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        filter: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .map-intro-anim { animation: none !important; }
+}
+
 /* Address cards */
 .address-cards {
     display: grid;
@@ -813,7 +840,7 @@
 .legend-panel {
     margin-top: 8px;
     width: min(320px, 88vw);
-    max-height: 70vh;
+    max-height: 40vh;
     overflow: auto;
     padding: 0.75rem;
     border-radius: 12px;
@@ -1167,10 +1194,8 @@
 
 /* CTA floating over map (optional stronger look) */
 .main-cta {
-    position: absolute;
+    /*position: absolute;*/
     top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
     z-index: 600;
     padding: .6rem .9rem;
     border-radius: 12px;
