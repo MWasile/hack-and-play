@@ -186,12 +186,12 @@ async def list_safety(
 
 @router.get("/{id}/detail", response_model=DistrictDetailRead)
 async def get_district_detail_by_id(
-    id: int = Path(..., ge=1),
+    _id: int = Path(..., ge=1),
     db: AsyncSession = Depends(get_db),
 ) -> DistrictDetailRead:
     stmt = (
         select(District)
-        .where(District.id == id)
+        .where(District.id == _id)
         .options(
             selectinload(District.social_life),
             selectinload(District.district_rhythm),
@@ -253,5 +253,22 @@ async def get_district_by_address_post(
     if not row:
         raise HTTPException(status_code=404, detail=f"District '{district_name}' not found in database")
 
-    return row
+    stmt = (
+        select(District)
+        .where(District.id == row.id)
+        .options(
+            selectinload(District.social_life),
+            selectinload(District.district_rhythm),
+            selectinload(District.green_places),
+            selectinload(District.digital_noise),
+            selectinload(District.social_availability),
+            selectinload(District.life_balance),
+            selectinload(District.safety),
+            selectinload(District.aggregates),
+        )
+    )
+    detailed = (await db.execute(stmt)).scalars().unique().one_or_none()
+    if detailed is None:
+        raise HTTPException(status_code=404, detail="District not found")
 
+    return detailed
