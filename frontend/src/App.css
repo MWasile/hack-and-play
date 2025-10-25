@@ -132,7 +132,7 @@
 
 /* Cards inside sidebar for better hierarchy */
 .sidebar .card {
-    background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.28), rgba(var(--surface-1-rgb), 0.32));
+    background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.68), rgba(var(--surface-1-rgb), 0.62));
     border: 1px solid var(--glass-border);
     border-radius: 16px; /* 1rem */
     padding: 1rem;
@@ -146,17 +146,17 @@
 }
 
 .sidebar .section.card + .section.card {
-    margin-top: 1.25rem;
+    margin-top: 0.5rem;
 }
 
 .title {
-    margin: 0 0 0.75rem 0;
+    margin: 0 0 0.25rem 0;
     font-weight: 700;
     letter-spacing: 0.2px;
 }
 
 .section {
-    margin-top: 1.25rem;
+    margin-top: 0.5rem;
 }
 
 .stack > * + * {
@@ -220,7 +220,7 @@
 
 .hint {
     opacity: 0.9;
-    color: var(--text-muted);
+    color: #2e2e2e;
 }
 
 .hint.small {
@@ -255,7 +255,7 @@
 }
 
 .sidebar button {
-    padding: 0.7rem 1rem; /* + */
+    padding: 0.4rem 1rem; /* + */
     border-radius: 12px; /* + */
     border: 2px solid var(--glass-border); /* + */
     background: linear-gradient(180deg, rgba(var(--surface-3-rgb), 0.75), rgba(var(--surface-1-rgb), 0.65));
