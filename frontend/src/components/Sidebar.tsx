@@ -3,7 +3,7 @@ import { AccordionItem } from './Accordion'
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { IconCar, IconTransit, IconBike, IconWalk } from './ModeIcons'
-import InsightsChart from './InsightsChart'
+import InsightsChart, { type InsightDatum } from './InsightsChart'
 import { Search, RefreshCcw, PlusCircle, SlidersHorizontal, Clock, Baby, PawPrint, TrafficCone, BarChart2, Home, Briefcase, MapPin } from 'lucide-react'
 
 export type Suggestion = { lat: number; lng: number; label: string }
@@ -72,7 +72,7 @@ interface Props {
   comparisonsLoading?: boolean
 }
 
-export default function Sidebar(props: Props) {
+export default function Sidebar(props: Props & { insightsData?: InsightDatum[] }) {
   const {
     homeQuery, onHomeQueryChange, onHomeSelect, onHomeSearch, homeLabel,
     workQuery, onWorkQueryChange, onWorkSelect, onWorkSearch,
@@ -160,7 +160,7 @@ export default function Sidebar(props: Props) {
                       onSelect={onHomeSelect}
                       autoFocus
                     />
-                    <button onClick={onHomeSearch} className={"btn primary" + (isHomeSearching ? ' loading' : '')} disabled={!!isHomeSearching} aria-busy={!!isHomeSearching}>
+                    <button onClick={() => { onHomeSearch(); setFlipped(true) }} className={"btn primary" + (isHomeSearching ? ' loading' : '')} disabled={!!isHomeSearching} aria-busy={!!isHomeSearching}>
                       {isHomeSearching ? 'Szukam…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Search size={14} aria-hidden /> <span>Szukaj</span></span>}
                     </button>
                   </div>
@@ -404,7 +404,7 @@ export default function Sidebar(props: Props) {
             <div className="section card">
               <div className="stack">
                 <p className="hint">Prezentacja wskaźników dla okolicy (mockowane dane):</p>
-                <InsightsChart />
+                <InsightsChart data={props.insightsData} />
               </div>
             </div>
           </div>

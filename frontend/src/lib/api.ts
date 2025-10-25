@@ -1,4 +1,5 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import http from './http'
 
 export type LngLat = { lng: number; lat: number }
 export type CommuteMode = 'car' | 'bike' | 'walk' | 'transit'
@@ -247,6 +248,31 @@ export async function fetchNearbyNamedStreets(center: LngLat, radiusMeters: numb
 
 // --- Advanced filters (mock only) ---
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening'
+
+// --- Backend: districts by address ---
+export type DistrictByAddressResponse = { id: number; name: string }
+export async function fetchDistrictByAddress(address: string): Promise<DistrictByAddressResponse | null> {
+  try {
+    const res = await http.post('/api/districts/by_address', { address })
+    if (res && res.data && typeof res.data.name === 'string') return res.data as DistrictByAddressResponse
+    return null
+  } catch (e) {
+    console.error('fetchDistrictByAddress failed', e)
+    return null
+  }
+}
+
+export type DistrictDetail = any
+export async function fetchDistrictDetailById(id: number): Promise<DistrictDetail | null> {
+  try {
+    const res = await http.get('/api/districts/detailed', { params: { id } })
+    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data[0]
+    return null
+  } catch (e) {
+    console.error('fetchDistrictDetailById failed', e)
+    return null
+  }
+}
 
 export async function fetchTrafficGrid(center: LngLat, radiusMeters: number, time: TimeOfDay): Promise<FeatureCollection> {
   // mock grid of squares colored by traffic intensity 0..1

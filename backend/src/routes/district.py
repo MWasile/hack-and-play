@@ -74,9 +74,10 @@ async def list_districts(
 async def list_districts_detailed(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
+    id: Optional[int] = Query(None, ge=1, description="Filter by district id"),
     db: AsyncSession = Depends(get_db),
 ) -> List[DistrictDetailRead]:
-    stmt = (
+    base = (
         select(District)
         .options(
             selectinload(District.social_life),
@@ -88,10 +89,11 @@ async def list_districts_detailed(
             selectinload(District.safety),
             selectinload(District.aggregates),
         )
-        .order_by(District.id.desc())
-        .offset((page - 1) * size)
-        .limit(size)
     )
+    if id is not None:
+        stmt = base.where(District.id == id).order_by(District.id.desc())
+    else:
+        stmt = base.order_by(District.id.desc()).offset((page - 1) * size).limit(size)
     rows = (await db.execute(stmt)).scalars().unique().all()
     return rows
 

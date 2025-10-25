@@ -81,10 +81,13 @@ const YTick: React.FC<any> = ({ x, y, payload }) => {
   )
 }
 
-export default function InsightsChart() {
+export type InsightDatum = { key: keyof typeof LABELS; value: number }
+
+export default function InsightsChart({ data: input }: { data?: InsightDatum[] }) {
   const data = useMemo(() => {
+    if (Array.isArray(input) && input.length) return input
     return MOCK
-  }, [])
+  }, [input])
   const reduceMotion = useReducedMotion()
 
   return (
@@ -134,7 +137,7 @@ export default function InsightsChart() {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 8, right: 25, bottom: 8, left: 0 }}
+          margin={{ top: 8, right: 25, bottom: 8, left: 10 }}
           barCategoryGap={10}
         >
           <defs>

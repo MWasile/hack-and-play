@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { InsightDatum } from './components/InsightsChart'
 import './App.css'
 import MapCanvas, { type CircleSpec, type MarkerSpec } from './components/MapCanvas'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
@@ -122,12 +123,63 @@ function App() {
     return { stroke: c, fill: c }
   }
 
+  const [insightsData, setInsightsData] = useState<InsightDatum[] | undefined>(undefined)
+
+  function mapDetailToInsights(detail: any): InsightDatum[] {
+    if (!detail || typeof detail !== 'object') return []
+    const first = (arr: any[] | undefined | null) => (Array.isArray(arr) && arr.length ? arr[0] : null)
+    const clamp = (n: number) => Math.max(0, Math.min(100, n))
+
+    const traffic = (() => {
+      const aggs = Array.isArray(detail.aggregates) ? detail.aggregates : []
+      const vals = aggs.map((a: any) => Number(a?.score_0_100)).filter((v: any) => Number.isFinite(v))
+      if (!vals.length) return NaN
+      const avg = vals.reduce((s: number, v: number) => s + v, 0) / vals.length
+      return clamp(avg)
+    })()
+
+    // Values from backend are already scaled 0..100 per sample; don't multiply
+    const social = clamp(Number(first(detail.social_life)?.normalized_score ?? NaN))
+    const rhythm = clamp(Number(first(detail.district_rhythm)?.rhythm_score ?? NaN))
+    const greenRaw = first(detail.green_places)
+    const green = clamp(Number((greenRaw?.green_life_score ?? (Number.isFinite(greenRaw?.green_ratio) ? (greenRaw?.green_ratio as number) * 100 : NaN))))
+    const noise = clamp(Number(first(detail.digital_noise)?.digital_noise_score ?? NaN))
+    const balance = clamp(Number(first(detail.life_balance)?.life_balance_score ?? NaN))
+    const availability = clamp(Number(first(detail.social_availability)?.social_availability_score ?? NaN))
+    const safety = clamp(Number(first(detail.safety)?.safety_index ?? NaN))
+
+    const data: InsightDatum[] = []
+    if (Number.isFinite(traffic)) data.push({ key: 'traffic', value: traffic })
+    if (Number.isFinite(social)) data.push({ key: 'social', value: social })
+    if (Number.isFinite(rhythm)) data.push({ key: 'rhythm', value: rhythm })
+    if (Number.isFinite(green)) data.push({ key: 'green', value: green })
+    if (Number.isFinite(noise)) data.push({ key: 'noise', value: noise })
+    if (Number.isFinite(balance)) data.push({ key: 'balance', value: balance })
+    if (Number.isFinite(availability)) data.push({ key: 'availability', value: availability })
+    if (Number.isFinite(safety)) data.push({ key: 'safety', value: safety })
+    return data
+  }
+
   // Geocode actions
   const searchHome = useCallback(async () => {
     try {
       setIsHomeSearching(true)
       const res = await geocodeAddress(homeQuery)
       if (res) setHome(res)
+      // Call backend to get district by address and highlight it
+      const { fetchDistrictByAddress, fetchDistrictDetailById } = await import('./lib/api')
+      const district = await fetchDistrictByAddress(homeQuery)
+      if (district?.name) {
+        setShowDistricts(true)
+        setSelectedDistricts([district.name])
+      }
+      if (district?.id) {
+        const detail = await fetchDistrictDetailById(district.id)
+        const insights = mapDetailToInsights(detail)
+        setInsightsData(insights.length ? insights : undefined)
+      } else {
+        setInsightsData(undefined)
+      }
     } finally {
       setIsHomeSearching(false)
     }
@@ -343,10 +395,10 @@ function App() {
     return () => { cancelled = true }
   }, [showDistricts])
 
-  // When turning ON the districts toggle, select all by default (each time)
+  // When turning ON the districts toggle, select all by default only if nothing selected yet
   useEffect(() => {
     if (showDistricts && districtNames.length) {
-      setSelectedDistricts(districtNames)
+      setSelectedDistricts((prev) => (prev && prev.length > 0 ? prev : districtNames))
     }
   }, [showDistricts])
 
@@ -962,6 +1014,7 @@ function App() {
             commuteInfo={commuteInfo}
             comparisons={comparisons}
             comparisonsLoading={comparisonsLoading}
+            insightsData={insightsData}
           />
         </Reveal>
 

@@ -24,6 +24,22 @@ function useDebounced<T>(val: T, delay = 300) {
   return v
 }
 
+function cleanDisplayName(name: string): string {
+  const parts = name.split(',').map(p => p.trim())
+  const filtered = parts.filter(p => {
+    if (!p) return false
+    const lower = p.toLowerCase()
+    // Omit country
+    if (lower === 'polska' || lower === 'poland') return false
+    // Omit voivodeship (province)
+    if (lower.startsWith('województwo')) return false
+    // Omit postal code like 03-140
+    if (/^[0-9]{2}-[0-9]{3}$/.test(p)) return false
+    return true
+  })
+  return filtered.join(', ')
+}
+
 export default function AddressAutocomplete({ placeholder, value, onChange, onSelect, className, autoFocus }: Props) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Suggestion[]>([])
@@ -53,7 +69,7 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
         if (!res.ok) return
         const data = await res.json() as Array<{ lat: string; lon: string; display_name: string }>
         if (!cancelled) {
-          setItems(data.map(d => ({ lat: Number(d.lat), lng: Number(d.lon), label: d.display_name })))
+          setItems(data.map(d => ({ lat: Number(d.lat), lng: Number(d.lon), label: cleanDisplayName(d.display_name) })))
           setActive(0)
           // DO NOT auto-open here. Visibility is controlled by focus/open state.
         }
