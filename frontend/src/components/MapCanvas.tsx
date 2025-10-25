@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import type { LatLngExpression, Map as LeafletMap } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -51,6 +51,8 @@ interface Props {
   onPickLocation?: (lat: number, lng: number) => void
   // New: GeoJSON layers for polygons or multipolygons
   geoJsonLayers?: GeoJsonLayerSpec[]
+  // Intro animation (scale, rotate, border radius, and zoom) on first mount
+  animateIntro?: boolean
 }
 
 export default function MapCanvas({
@@ -62,6 +64,7 @@ export default function MapCanvas({
   height = '100%',
   onPickLocation,
   geoJsonLayers = [],
+  animateIntro = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -70,6 +73,9 @@ export default function MapCanvas({
   const circlesRef = useRef<Record<string, L.Circle>>({})
   const geoJsonRef = useRef<Record<string, L.GeoJSON>>({})
   const centerControlRef = useRef<L.Control | null>(null)
+  const [isIntroAnimating, setIsIntroAnimating] = useState(false)
+  const introDurationMs = 1300
+  const hasAnimatedRef = useRef(false)
 
   const defaultCenter = useMemo(() => ({ lat: 52.2297, lng: 21.0122 }), []) // Warsaw as sensible default
 
@@ -95,6 +101,25 @@ export default function MapCanvas({
 
     mapRef.current = map
 
+    // Intro animation: scale, rotate, border radius + smooth zoom
+    if (animateIntro && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true
+      // Apply CSS class for intro animation
+      setIsIntroAnimating(true)
+      try {
+        const targetZoom = Math.min(14, (map.getZoom?.() ?? 12) + 2)
+        map.zoomIn(1, { animate: true })
+        setTimeout(() => {
+          map.setZoom(targetZoom, { animate: true })
+        }, 150)
+      } catch {}
+      // Cleanup after animation duration
+      window.setTimeout(() => {
+        setIsIntroAnimating(false)
+        map.invalidateSize()
+      }, introDurationMs)
+    }
+
     // Ensure map resizes properly when container size changes
     setTimeout(() => map.invalidateSize(), 0)
 
@@ -106,7 +131,7 @@ export default function MapCanvas({
       circlesRef.current = {}
       geoJsonRef.current = {}
     }
-  }, [center, defaultCenter, onPickLocation])
+  }, [center, defaultCenter, onPickLocation, animateIntro, introDurationMs])
 
   // Update view when center changes
   useEffect(() => {
@@ -319,7 +344,7 @@ export default function MapCanvas({
   return (
     <div
       ref={containerRef}
-      className={className}
+      className={`${className ?? ''} ${isIntroAnimating ? 'map-intro-anim' : ''}`}
       style={{
         height,
         borderRadius: '12px',

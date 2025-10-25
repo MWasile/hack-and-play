@@ -36,13 +36,13 @@
 
   /* Surfaces (neutral, softly tinted) */
   --surface-1-rgb: 255, 255, 255;  /* base surface */
-  --surface-2-rgb: 248, 249, 255;  /* barely tinted */
+  --surface-2-rgb: 255, 249, 255;  /* barely tinted */
   --surface-3-rgb: 244, 246, 255;  /* slight tint */
   --surface-4-rgb: 238, 241, 255;  /* strongest light tint */
 
   /* Glassmorphism tokens */
   --glass-bg-1: rgba(var(--surface-1-rgb), 0.05);
-  --glass-bg-2: rgba(var(--surface-2-rgb), 0.75);
+  --glass-bg-2: rgba(var(--surface-2-rgb), 0.9);
   --glass-border: rgba(var(--neutral-100-rgb), 0.58);
   --glass-blur: 14px;
   --glass-saturation: 140%;

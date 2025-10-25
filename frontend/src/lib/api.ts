@@ -1,4 +1,5 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import http from './http'
 
 export type LngLat = { lng: number; lat: number }
 export type CommuteMode = 'car' | 'bike' | 'walk' | 'transit'
@@ -26,6 +27,25 @@ function makeSquare(center: LngLat, sizeMeters: number, props: any = {}): Featur
     type: 'Feature',
     properties: { ...props },
     geometry: { type: 'Polygon', coordinates: [ring] } as Geometry,
+  }
+}
+
+function makeCircle(center: LngLat, radiusMeters: number, props: any = {}, segments: number = 48): Feature<Geometry> {
+  // Approximate a circle by a polygon with given number of segments
+  const coords: [number, number][] = []
+  for (let i = 0; i < segments; i++) {
+    const theta = (i / segments) * 2 * Math.PI
+    const dx = Math.cos(theta) * radiusMeters
+    const dy = Math.sin(theta) * radiusMeters
+    const { dLng, dLat } = metersToDeg(center.lat, dx, dy)
+    coords.push([center.lng + dLng, center.lat + dLat])
+  }
+  // close the ring
+  coords.push(coords[0])
+  return {
+    type: 'Feature',
+    properties: { ...props },
+    geometry: { type: 'Polygon', coordinates: [coords] } as Geometry,
   }
 }
 
@@ -248,24 +268,39 @@ export async function fetchNearbyNamedStreets(center: LngLat, radiusMeters: numb
 // --- Advanced filters (mock only) ---
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening'
 
-export async function fetchTrafficGrid(center: LngLat, radiusMeters: number, time: TimeOfDay): Promise<FeatureCollection> {
-  // mock grid of squares colored by traffic intensity 0..1
-  const size = Math.max(400, Math.min(radiusMeters / 4, 1200))
-  const cols = 5
-  const rows = 5
-  const features: Feature<Geometry>[] = []
-  for (let y = -Math.floor(rows/2); y <= Math.floor(rows/2); y++) {
-    for (let x = -Math.floor(cols/2); x <= Math.floor(cols/2); x++) {
-      const { dLng, dLat } = metersToDeg(center.lat, x * size * 1.2, y * size * 1.2)
-      const c = { lat: center.lat + dLat, lng: center.lng + dLng }
-      // vary intensity by time of day
-      const base = time === 'morning' ? 0.6 : time === 'afternoon' ? 0.5 : 0.4
-      const noise = Math.random() * 0.4
-      const tscore = Math.min(1, Math.max(0.05, base + noise - (Math.abs(x) + Math.abs(y)) * 0.06))
-      features.push(makeSquare(c, size, { kind: 'traffic', time, tscore }))
-    }
+// --- Backend: districts by address ---
+export type DistrictByAddressResponse = { id: number; name: string }
+export async function fetchDistrictByAddress(address: string): Promise<DistrictByAddressResponse | null> {
+  try {
+    const res = await http.post('/api/districts/by_address', { address })
+    if (res && res.data && typeof res.data.name === 'string') return res.data as DistrictByAddressResponse
+    return null
+  } catch (e) {
+    console.error('fetchDistrictByAddress failed', e)
+    return null
   }
-  return fc(features)
+}
+
+export type DistrictDetail = any
+export async function fetchDistrictDetailById(id: number): Promise<DistrictDetail | null> {
+  try {
+    const res = await http.get('/api/districts/detailed', { params: { id } })
+    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data[0]
+    return null
+  } catch (e) {
+    console.error('fetchDistrictDetailById failed', e)
+    return null
+  }
+}
+
+export async function fetchTrafficGrid(center: LngLat, radiusMeters: number, time: TimeOfDay): Promise<FeatureCollection> {
+  // Unified surface (single polygon) colored by traffic intensity 0..1
+  const base = time === 'morning' ? 0.6 : time === 'afternoon' ? 0.5 : 0.4
+  const noise = Math.random() * 0.1 // small variation to avoid being too static
+  const tscore = Math.min(1, Math.max(0.05, base + noise))
+  const radius = Math.max(300, Math.min(radiusMeters * 0.95, 3000))
+  const feature = makeCircle(center, radius, { kind: 'traffic', time, tscore })
+  return fc([feature])
 }
 
 export async function fetchSocialLifeHotspots(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
@@ -281,50 +316,42 @@ export async function fetchSocialLifeHotspots(center: LngLat, radiusMeters: numb
 }
 
 export async function fetchDistrictRhythm(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
-  // mock labeled zones: sypialnia/rodzinna/biurowa
+  // Unified surface for district rhythm: pick a single type label and color it uniformly
   const types = ['sypialnia', 'rodzinna', 'biurowa'] as const
-  const feats: Feature<Geometry>[] = []
-  const size = Math.max(600, Math.min(radiusMeters / 3, 1600))
-  for (let i = 0; i < 6; i++) {
-    const c = randomNearby(center, radiusMeters)
-    const t = types[Math.floor(Math.random()*types.length)]
-    feats.push(makeSquare(c, size, { kind: 'rhythm', type: t }))
-  }
-  return fc(feats)
+  const type = types[Math.floor(Math.random() * types.length)]
+  const radius = Math.max(300, Math.min(radiusMeters * 0.95, 3000))
+  const feature = makeCircle(center, radius, { kind: 'rhythm', type })
+  return fc([feature])
 }
 
 export async function fetchDigitalNoise(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
-  // mock grid with noise intensity 0..1
-  const size = Math.max(400, Math.min(radiusMeters / 4, 1200))
-  const feats: Feature<Geometry>[] = []
-  for (let i = 0; i < 14; i++) {
-    const c = randomNearby(center, radiusMeters * 0.9)
-    const noise = Math.random()
-    feats.push(makeSquare(c, size, { kind: 'digital-noise', noise }))
-  }
-  return fc(feats)
+  // Unified surface for digital noise with uniform intensity 0..1
+  const base = 0.5
+  const jitter = (Math.random() - 0.5) * 0.2 // ±0.1
+  const noise = Math.max(0, Math.min(1, base + jitter))
+  const radius = Math.max(300, Math.min(radiusMeters * 0.95, 3000))
+  const feature = makeCircle(center, radius, { kind: 'digital-noise', noise })
+  return fc([feature])
 }
 
 export async function fetchLifeBalance(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
-  const size = Math.max(500, Math.min(radiusMeters / 3, 1500))
-  const feats: Feature<Geometry>[] = []
-  for (let i = 0; i < 8; i++) {
-    const c = randomNearby(center, radiusMeters)
-    const balance = Math.random() * 0.6 + 0.2
-    feats.push(makeSquare(c, size, { kind: 'life-balance', balance }))
-  }
-  return fc(feats)
+  // Unified surface for life balance with uniform score 0..1
+  const base = 0.55
+  const jitter = (Math.random() - 0.5) * 0.3 // ±0.15
+  const balance = Math.max(0, Math.min(1, base + jitter))
+  const radius = Math.max(300, Math.min(radiusMeters * 0.95, 3000))
+  const feature = makeCircle(center, radius, { kind: 'life-balance', balance })
+  return fc([feature])
 }
 
-export async function fetchSocialAvailability(center: LngLat, radiusMeters: number): Promise<Feature<Geometry> | FeatureCollection> {
-  const size = Math.max(400, Math.min(radiusMeters / 4, 1200))
-  const feats: Feature<Geometry>[] = []
-  for (let i = 0; i < 10; i++) {
-    const c = randomNearby(center, radiusMeters)
-    const availability = Math.random()
-    feats.push(makeSquare(c, size, { kind: 'social-availability', availability }))
-  }
-  return fc(feats)
+export async function fetchSocialAvailability(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {
+  // Unified surface for social availability with uniform score 0..1
+  const base = 0.6
+  const jitter = (Math.random() - 0.5) * 0.3 // ±0.15
+  const availability = Math.max(0, Math.min(1, base + jitter))
+  const radius = Math.max(300, Math.min(radiusMeters * 0.95, 3000))
+  const feature = makeCircle(center, radius, { kind: 'social-availability', availability })
+  return fc([feature])
 }
 
 export async function fetchSafetyIncidents(center: LngLat, radiusMeters: number): Promise<FeatureCollection> {

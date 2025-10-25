@@ -1,0 +1,124 @@
+/* Modern AddressCards styles with appear+pulse animation and subtle SVG pattern cutouts */
+
+.address-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.address-card {
+  position: relative;
+  overflow: hidden;
+  padding: 14px 14px 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-2);
+  backdrop-filter: saturate(var(--glass-saturation)) blur(var(--glass-blur));
+  box-shadow: var(--elev-1);
+  transform: translateY(0) scale(1);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.address-card .right {
+    text-align: right;
+}
+
+.address-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--elev-2);
+  border-color: rgba(var(--primary-light-rgb), 0.6);
+}
+
+/* Accent variables per type */
+.card-home { --card-accent: var(--accent-home); --card-accent-rgb: var(--accent-home-rgb); }
+.card-work { --card-accent: var(--accent-work); --card-accent-rgb: var(--accent-work-rgb); }
+.card-spot { --card-accent: var(--accent-frequent); --card-accent-rgb: var(--accent-frequent-rgb); }
+
+/* Subtle corner pattern using an SVG mask (dots) */
+.address-card::before {
+  content: '';
+  position: absolute;
+  top: -18%;
+  right: -18%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: var(--card-accent, #6650ff);
+  opacity: 0.12; /* very subtle */
+  /* Mask with an inline SVG dot pattern, white=visible */
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><defs><pattern id='p' width='12' height='12' patternUnits='userSpaceOnUse'><circle cx='2' cy='2' r='2' fill='white'/></pattern></defs><rect width='100%' height='100%' fill='url(%23p)'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><defs><pattern id='p' width='12' height='12' patternUnits='userSpaceOnUse'><circle cx='2' cy='2' r='2' fill='white'/></pattern></defs><rect width='100%' height='100%' fill='url(%23p)'/></svg>");
+  mask-repeat: repeat;
+  mask-size: auto;
+  pointer-events: none;
+}
+
+/* Badge with icon */
+.badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  color: white;
+  background: var(--card-accent, var(--link));
+  box-shadow: 0 6px 16px rgba(var(--card-accent-rgb, var(--shadow-rgb)), 0.20);
+  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-icon { opacity: 0.95; }
+
+.big {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.muted {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Appear + pulse animation */
+.appear {
+  animation: cardIn 420ms cubic-bezier(.16,1,.3,1) both;
+}
+
+/* Stagger a bit naturally */
+.address-cards .address-card.appear:nth-child(2) { animation-delay: 60ms; }
+.address-cards .address-card.appear:nth-child(3) { animation-delay: 120ms; }
+.address-cards .address-card.appear:nth-child(4) { animation-delay: 180ms; }
+.address-cards .address-card.appear:nth-child(5) { animation-delay: 240ms; }
+
+/* Gentle ring pulse once */
+.address-card.appear::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(var(--card-accent-rgb, 102, 80, 255), 0.35);
+  animation: pulseRing 900ms ease-out 220ms 1;
+  pointer-events: none;
+}
+
+@keyframes cardIn {
+  0% { opacity: 0; transform: translateY(8px) scale(.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--card-accent-rgb, 102, 80, 255), 0.35); }
+  100% { box-shadow: 0 0 0 14px rgba(var(--card-accent-rgb, 102, 80, 255), 0); }
+}
+
+/* Reduce motion, respect user setting */
+@media (prefers-reduced-motion: reduce) {
+  .appear, .address-card.appear::after { animation: none; }
+  .address-card { transition: none; }
+}
+
