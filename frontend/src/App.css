@@ -486,7 +486,7 @@
 }
 
 .address-card {
-    background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.8), rgba(var(--surface-1-rgb), 0.85));
+    background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 1), rgba(var(--surface-1-rgb), 1));
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 0.9rem;
@@ -494,7 +494,8 @@
 }
 
 .address-card .badge {
-    display: inline-block;
+    display: flex;
+    width: fit-content;
     padding: 0.2rem 0.5rem;
     border-radius: 999px;
     font-size: 0.75rem;
@@ -574,6 +575,7 @@
 
 .stack .chip {
     padding: 0 0.3rem 0 0.7rem;
+    margin: 5px 5px;
     border-radius: 12px;
 }
 

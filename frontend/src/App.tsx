@@ -16,6 +16,31 @@ import CommuteSummary from './components/CommuteSummary'
 import { themeColors } from './styles/theme'
 import Reveal from './components/Reveal'
 
+// Helper: shorten Nominatim display_name by removing province, postal code, and country
+function shortAddressLabel(s: string | undefined | null): string | undefined {
+  if (!s) return s ?? undefined
+  const parts = s.split(',').map((p) => p.trim()).filter(Boolean)
+  if (!parts.length) return s.trim()
+
+  const shouldDrop = (p: string) => {
+    const lower = p.toLowerCase()
+    // Postal codes (PL: 00-000, generic 5-digit)
+    if (/^\d{2}-\d{3}$/.test(p) || /^\d{5}$/.test(p)) return true
+    // Country names / codes
+    if (['polska', 'poland', 'republic of poland', 'rzeczpospolita polska', 'rp'].includes(lower)) return true
+    if (/^[A-Z]{2}$/.test(p)) return true // e.g., PL
+    // Administrative regions
+    if (lower.includes('województwo') || lower.includes('voivodeship') || lower.includes('province') || lower.includes('state')) return true
+    // Counties/communes appended at tail sometimes
+    return /^(powiat|gmina)\b/i.test(p)
+  }
+
+  // Remove trailing irrelevant parts
+  while (parts.length && shouldDrop(parts[parts.length - 1])) parts.pop()
+
+  return parts.join(', ')
+}
+
 // Tiny geocoder using OpenStreetMap Nominatim (public demo; keep requests light)
 async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; label: string } | null> {
   if (!q.trim()) return null
@@ -34,7 +59,8 @@ async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; la
   const data = await res.json() as Array<{ lat: string; lon: string; display_name: string }>
   if (!data?.length) return null
   const first = data[0]
-  return { lat: Number(first.lat), lng: Number(first.lon), label: first.display_name }
+  const label = shortAddressLabel(first.display_name) ?? first.display_name
+  return { lat: Number(first.lat), lng: Number(first.lon), label }
 }
 
 function App() {
@@ -265,13 +291,23 @@ function App() {
       const raw = localStorage.getItem('hp_prefs_v1')
       if (!raw) return
       const p = JSON.parse(raw)
-      if (p.home) { setHome(p.home); if (p.home.label) setHomeQuery(p.home.label) }
-      if (p.work) { setWork(p.work); if (p.work.label) setWorkQuery(p.work.label) }
+      if (p.home) {
+        const h = { ...p.home, label: shortAddressLabel(p.home.label) ?? p.home.label }
+        setHome(h)
+        if (h.label) setHomeQuery(h.label)
+      }
+      if (p.work) {
+        const w = { ...p.work, label: shortAddressLabel(p.work.label) ?? p.work.label }
+        setWork(w)
+        if (w.label) setWorkQuery(w.label)
+      }
       if (Array.isArray(p.frequentList)) {
-        setFrequentList(p.frequentList)
-        if (p.frequentList.length) { const last = p.frequentList[p.frequentList.length - 1]; setFrequent(last); if (last.label) setFrequentQuery(last.label) }
+        const list = p.frequentList.map((f: any) => ({ ...f, label: shortAddressLabel(f.label) ?? f.label }))
+        setFrequentList(list)
+        if (list.length) { const last = list[list.length - 1]; setFrequent(last); if (last.label) setFrequentQuery(last.label) }
       } else if (p.frequent) {
-        setFrequent(p.frequent); if (p.frequent.label) setFrequentQuery(p.frequent.label)
+        const f = { ...p.frequent, label: shortAddressLabel(p.frequent.label) ?? p.frequent.label }
+        setFrequent(f); if (f.label) setFrequentQuery(f.label)
       }
       setAnalyzeCommute(!!p.analyzeCommute)
       setCommuteMode(p.commuteMode ?? 'car')

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 type Suggestion = {
   lat: number
@@ -47,6 +48,9 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
   const [loading, setLoading] = useState(false)
   const debounced = useDebounced(value, 300)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const portalRef = useRef<HTMLDivElement | null>(null)
+  const [portalPos, setPortalPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 })
 
   useEffect(() => {
     let cancelled = false
@@ -82,14 +86,50 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (!rootRef.current) return
-      if (!rootRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      const rootEl = rootRef.current
+      const portalEl = portalRef.current
+      if (!rootEl && !portalEl) return
+      const insideRoot = !!(rootEl && rootEl.contains(target))
+      const insidePortal = !!(portalEl && portalEl.contains(target))
+      if (!insideRoot && !insidePortal) {
         setOpen(false)
       }
     }
-    document.addEventListener('mousedown', onDocClick)
-    return () => document.removeEventListener('mousedown', onDocClick)
+    document.addEventListener('mousedown', onDocClick, true)
+    return () => document.removeEventListener('mousedown', onDocClick, true)
   }, [])
+
+  // Position the portal under the input
+  useLayoutEffect(() => {
+    if (!open) return
+    const el = inputRef.current
+    if (!el) return
+
+    let frame = 0
+    const update = () => {
+      const r = el.getBoundingClientRect()
+      setPortalPos({ top: r.bottom, left: r.left, width: r.width })
+    }
+    update()
+
+    const onScroll = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update) }
+    const onResize = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update) }
+
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onResize)
+    // Use a guarded constructor instead of optional chaining with new
+    const RO = (window as any).ResizeObserver as (new (cb: ResizeObserverCallback) => ResizeObserver) | undefined
+    const ro = RO ? new RO(() => onResize()) : undefined
+    ro?.observe(el)
+
+    return () => {
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onResize)
+      ro?.disconnect?.()
+      cancelAnimationFrame(frame)
+    }
+  }, [open, items.length, loading])
 
   function choose(index: number) {
     const s = items[index]
@@ -114,42 +154,57 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
     }
   }
 
+  const shouldShow = open && (loading || items.length > 0)
+
   return (
     <div className={`ac-root ${className ?? ''}`} ref={rootRef}>
       <input
+        ref={inputRef}
         className="ac-input"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => (items.length > 0 || loading) && setOpen(true)}
-        onBlur={() => setOpen(false)}
+        // onBlur removed; outside-click handler controls closing including portal content
         onKeyDown={onKeyDown}
         autoFocus={autoFocus}
       />
-      {open && (loading || items.length > 0) && (
-        <div className="ac-list">
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={`skel-${i}`} className="ac-item skeleton" aria-hidden>
-                <span className="ac-skel-line" />
-              </div>
-            ))
-          ) : (
-            items.map((it, i) => (
-              <button
-                key={`${it.lat}-${it.lng}-${i}`}
-                type="button"
-                className={`ac-item ${i === active ? 'active' : ''}`}
-                onMouseEnter={() => setActive(i)}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => choose(i)}
-                title={it.label}
-              >
-                <span className="ac-item-title">{it.label}</span>
-              </button>
-            ))
-          )}
-        </div>
+      {shouldShow && inputRef.current && createPortal(
+        <div
+          ref={portalRef}
+          style={{
+            position: 'fixed',
+            top: portalPos.top,
+            left: portalPos.left,
+            width: portalPos.width,
+            zIndex: 10000,
+          }}
+        >
+          <div className="ac-list">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={`skel-${i}`} className="ac-item skeleton" aria-hidden>
+                  <span className="ac-skel-line" />
+                </div>
+              ))
+            ) : (
+              items.map((it, i) => (
+                <button
+                  key={`${it.lat}-${it.lng}-${i}`}
+                  type="button"
+                  className={`ac-item ${i === active ? 'active' : ''}`}
+                  onMouseEnter={() => setActive(i)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => choose(i)}
+                  title={it.label}
+                >
+                  <span className="ac-item-title">{it.label}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -62,6 +62,8 @@ export default function MapLegend(props: MapLegendProps) {
 				onClick={() => setOpen((o) => !o)}
 				title={open ? 'Zwiń legendę' : 'Pokaż legendę'}
 				disabled={disabled}
+				aria-expanded={open}
+				aria-controls="map-legend-panel"
 			>
         <span className="legend-toggle-icon" aria-hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -71,7 +73,14 @@ export default function MapLegend(props: MapLegendProps) {
 				<span className="legend-toggle-label">Legenda</span>
 			</button>
 
-			<div className={"legend-panel" + (open ? " open" : "")} role="dialog" aria-label="Legenda mapy">
+			<div
+				id="map-legend-panel"
+				className={"legend-panel" + (open ? " open" : "")}
+				role="dialog"
+				aria-label="Legenda mapy"
+				hidden={!open}
+				style={{ display: open ? undefined : 'none' }}
+			>
 				<div className="legend-section">
 					<div className="legend-title">Zasięg analiz</div>
 					<label className="legend-field">
@@ -87,16 +96,16 @@ export default function MapLegend(props: MapLegendProps) {
 						}}>
               <svg width="14" height="14" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                 <circle cx="10" cy="10" r="7" fill="none" stroke="var(--accent-work)" strokeWidth="2"
-												strokeDasharray="4 3"/>
+														strokeDasharray="4 3"/>
               </svg>
             </span> Ogólny ({analysisRadius} m)</span>
 						<input type="range" min={500} max={8000} step={100} value={analysisRadius}
-									 onChange={(e) => onAnalysisRadiusChange(Number(e.target.value))}/>
+								 onChange={(e) => onAnalysisRadiusChange(Number(e.target.value))}/>
 					</label>
 					<label className="legend-field">
 						<span>🌳 Zieleń (m)</span>
 						<input type="range" min={200} max={5000} step={100} value={greenRadius}
-									 onChange={(e) => onGreenRadiusChange(Number(e.target.value))}/>
+								 onChange={(e) => onGreenRadiusChange(Number(e.target.value))}/>
 					</label>
 				</div>
 
@@ -110,7 +119,7 @@ export default function MapLegend(props: MapLegendProps) {
 					<label className="legend-checkbox">
 						<input type="checkbox" checked={showDistricts} onChange={(e) => onShowDistrictsChange(e.target.checked)}/>
 						<span className="legend-chip"
-									style={{background: 'linear-gradient(90deg, var(--chip-heat-1), var(--chip-heat-2), var(--chip-heat-3), var(--chip-heat-4), var(--chip-heat-5), var(--chip-heat-6))'}}/>
+								style={{background: 'linear-gradient(90deg, var(--chip-heat-1), var(--chip-heat-2), var(--chip-heat-3), var(--chip-heat-4), var(--chip-heat-5), var(--chip-heat-6))'}}/>
 						<span>🗺️ Dzielnice</span>
 					</label>
 					<label className="legend-checkbox">
@@ -134,25 +143,25 @@ export default function MapLegend(props: MapLegendProps) {
 					</label>
 					<label className="legend-checkbox">
 						<input type="checkbox" checked={showDistrictRhythm}
-									 onChange={(e) => onShowDistrictRhythmChange(e.target.checked)}/>
+								 onChange={(e) => onShowDistrictRhythmChange(e.target.checked)}/>
 						<span className="legend-chip" style={{background: 'var(--accent-sky)'}}/>
 						<span>🏘️ Rytm dzielnicy</span>
 					</label>
 					<label className="legend-checkbox">
 						<input type="checkbox" checked={showDigitalNoise}
-									 onChange={(e) => onShowDigitalNoiseChange(e.target.checked)}/>
+								 onChange={(e) => onShowDigitalNoiseChange(e.target.checked)}/>
 						<span className="legend-chip" style={{background: 'var(--accent-deep-purple)'}}/>
 						<span>📶 Cyfrowy hałas</span>
 					</label>
 					<label className="legend-checkbox">
 						<input type="checkbox" checked={showLifeBalance}
-									 onChange={(e) => onShowLifeBalanceChange(e.target.checked)}/>
+								 onChange={(e) => onShowLifeBalanceChange(e.target.checked)}/>
 						<span className="legend-chip" style={{background: 'var(--accent-orange)'}}/>
 						<span>⚖️ Life Balance</span>
 					</label>
 					<label className="legend-checkbox">
 						<input type="checkbox" checked={showSocialAvailability}
-									 onChange={(e) => onShowSocialAvailabilityChange(e.target.checked)}/>
+								 onChange={(e) => onShowSocialAvailabilityChange(e.target.checked)}/>
 						<span className="legend-chip" style={{background: 'var(--accent-cyan)'}}/>
 						<span>🤝 Dostępność społeczna</span>
 					</label>
