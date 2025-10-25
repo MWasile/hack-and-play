@@ -8,7 +8,7 @@ spec:
     app: {{.Values.api.appName}}
   ports:
     - port: 5000
-      targetPort: 5000
+      targetPort: 5001
   type: ClusterIP
 
 ---
@@ -36,7 +36,7 @@ spec:
         - name: {{.Values.api.appName }}
           image: "{{.Values.api.image.name}}:{{.Values.api.image.tag}}"
           ports:
-            - containerPort: 5000
+            - containerPort: 5001
           envFrom:
             - secretRef:
                 name: {{ .Values.api.appName }}
