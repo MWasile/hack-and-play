@@ -7,7 +7,6 @@ from src.routes.district import router as districts_router
 
 app = FastAPI()
 
-# Mount API routers
 app.include_router(districts_router, prefix="/api")
 
 
