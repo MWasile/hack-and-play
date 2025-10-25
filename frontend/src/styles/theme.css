@@ -27,7 +27,8 @@
 
   /* Primary palette (purple/indigo, softened) */
   --primary-rgb: 102, 80, 255;         /* #6650ff */
-  --primary-light-rgb: 161, 140, 255;  /* #a18cff */
+  --primary-light-rgb: 221, 214, 255;  /* #a18cff */
+    /*--primary-light-rgb: #ddd6ff;*/
   --primary-100: #eef0ff;              /* very light indigo */
   --primary-100-rgb: 180, 184, 243;
   --primary-200: #e2e4ff;              /* lighter indigo */
@@ -40,7 +41,7 @@
   --surface-4-rgb: 238, 241, 255;  /* strongest light tint */
 
   /* Glassmorphism tokens */
-  --glass-bg-1: rgba(var(--surface-1-rgb), 0.55);
+  --glass-bg-1: rgba(var(--surface-1-rgb), 0.05);
   --glass-bg-2: rgba(var(--surface-2-rgb), 0.75);
   --glass-border: rgba(var(--neutral-100-rgb), 0.58);
   --glass-blur: 14px;

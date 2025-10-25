@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { IconCar, IconTransit, IconBike, IconWalk } from './ModeIcons'
 import InsightsChart from './InsightsChart'
+import { Search, RefreshCcw, PlusCircle, SlidersHorizontal, Clock, Baby, PawPrint, TrafficCone, BarChart2, Home, Briefcase, MapPin } from 'lucide-react'
 
 export type Suggestion = { lat: number; lng: number; label: string }
 
@@ -128,15 +129,18 @@ export default function Sidebar(props: Props) {
           {/* FRONT */}
           <div style={faceStyle}>
             <div className="title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <h2 className="title" style={{ margin: 0 }}>🔎 Wyszukaj lokalizację</h2>
+              <h2 className="title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Search size={18} aria-hidden />
+                <span>Wyszukaj lokalizację</span>
+              </h2>
               <button
                 type="button"
-                className="btn"
+                className="btn icon"
                 title="Pokaż wskaźniki"
                 onClick={() => setFlipped(true)}
                 aria-label="Pokaż wskaźniki"
               >
-                🔁
+                <BarChart2 size={18} aria-hidden />
               </button>
             </div>
 
@@ -144,7 +148,10 @@ export default function Sidebar(props: Props) {
             <div className="section card">
               <div className="stack">
                 <div className="field">
-                  <label className="label">🏠 Adres bazowy</label>
+                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Home size={14} aria-hidden />
+                    <span>Adres bazowy</span>
+                  </label>
                   <div className="field-row nowrap">
                     <AddressAutocomplete
                       placeholder="np. Marszałkowska 1, Warszawa"
@@ -154,7 +161,7 @@ export default function Sidebar(props: Props) {
                       autoFocus
                     />
                     <button onClick={onHomeSearch} className={"btn primary" + (isHomeSearching ? ' loading' : '')} disabled={!!isHomeSearching} aria-busy={!!isHomeSearching}>
-                      {isHomeSearching ? 'Szukam…' : 'Szukaj'}
+                      {isHomeSearching ? 'Szukam…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Search size={14} aria-hidden /> <span>Szukaj</span></span>}
                     </button>
                   </div>
                 </div>
@@ -166,11 +173,17 @@ export default function Sidebar(props: Props) {
 
             <div ref={optRef}>
               <AccordionItem className="section card" title={<>
-                ✚ Opcjonalne
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <PlusCircle size={16} aria-hidden />
+                  <span>Opcjonalne</span>
+                </span>
               </>} defaultOpen>
                 <div className="stack">
                   <div className="field">
-                    <label className="label">💼 Adres Pracy / Uczelni</label>
+                    <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Briefcase size={14} aria-hidden />
+                      <span>Adres Pracy / Uczelni</span>
+                    </label>
                     {/* Make input full width; action below */}
                     <AddressAutocomplete
                       placeholder="np. Aleje Jerozolimskie 123, Warszawa"
@@ -184,7 +197,10 @@ export default function Sidebar(props: Props) {
                   </div>
 
                   <div className="field">
-                    <label className="label">📍 Często odwiedzana lokalizacja</label>
+                    <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <MapPin size={14} aria-hidden />
+                      <span>Często odwiedzana lokalizacja</span>
+                    </label>
                     <AddressAutocomplete
                       placeholder="np. dom rodziny, ulubione miejsce"
                       value={frequentQuery}
@@ -221,13 +237,19 @@ export default function Sidebar(props: Props) {
             </div>
 
             <AccordionItem className="section card" title={<>
-              🎛️ Filtry
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <SlidersHorizontal size={16} aria-hidden />
+                <span>Filtry</span>
+              </span>
             </>} defaultOpen>
               <div className="stack">
                 <label className="toggle">
                   <input type="checkbox" checked={analyzeCommute} onChange={(e) => onAnalyzeCommuteChange(e.target.checked)} />
                   <span className="toggle-track" aria-hidden><span className="toggle-thumb" /></span>
-                  <span className="toggle-text">⏱️ Analiza czasu dojazdu</span>
+                  <span className="toggle-text" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Clock size={14} aria-hidden />
+                    <span>Analiza czasu dojazdu</span>
+                  </span>
                 </label>
 
                 {analyzeCommute && (
@@ -252,8 +274,8 @@ export default function Sidebar(props: Props) {
                         )
                       })}
                     </div>
-                    <div className="time-row">
-                      <span className="time-ico">🕒</span>
+                    <div className="time-row" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Clock size={14} aria-hidden />
                       <input
                         className="time-slider"
                         type="range"
@@ -271,7 +293,10 @@ export default function Sidebar(props: Props) {
                 <label className="toggle">
                   <input type="checkbox" checked={considerChild} onChange={(e) => onConsiderChildChange(e.target.checked)} />
                   <span className="toggle-track" aria-hidden><span className="toggle-thumb" /></span>
-                  <span className="toggle-text">👶 Dziecko</span>
+                  <span className="toggle-text" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Baby size={14} aria-hidden />
+                    <span>Dziecko</span>
+                  </span>
                 </label>
 
                 <div className={"reveal" + (considerChild ? ' open' : '')}>
@@ -286,7 +311,10 @@ export default function Sidebar(props: Props) {
                 <label className="toggle">
                   <input type="checkbox" checked={hasPets} onChange={(e) => onHasPetsChange(e.target.checked)} />
                   <span className="toggle-track" aria-hidden><span className="toggle-thumb" /></span>
-                  <span className="toggle-text">🐾 Zwierzęta</span>
+                  <span className="toggle-text" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <PawPrint size={14} aria-hidden />
+                    <span>Zwierzęta</span>
+                  </span>
                 </label>
 
                 {showDistricts && (
@@ -312,7 +340,10 @@ export default function Sidebar(props: Props) {
                 )}
 
                 <div className="field">
-                  <label className="label">🚦 Wyróżnij ulicę (Warszawa)</label>
+                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <TrafficCone size={14} aria-hidden />
+                    <span>Wyróżnij ulicę (Warszawa)</span>
+                  </label>
                   <div className="field-row nowrap">
                     <input
                       placeholder="np. Puławska, Marszałkowska (możesz wkleić wiele wierszy lub rozdzielić przecinkami)"
@@ -356,15 +387,18 @@ export default function Sidebar(props: Props) {
           {/* BACK */}
           <div style={backStyle}>
             <div className="title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <h2 className="title" style={{ margin: 0 }}>📊 Wskaźniki</h2>
+              <h2 className="title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <BarChart2 size={18} aria-hidden />
+                <span>Wskaźniki</span>
+              </h2>
               <button
                 type="button"
-                className="btn"
+                className="btn icon"
                 title="Wróć do wyszukiwania"
                 onClick={() => setFlipped(false)}
                 aria-label="Wróć"
               >
-                🔁
+                <RefreshCcw size={18} aria-hidden />
               </button>
             </div>
             <div className="section card">

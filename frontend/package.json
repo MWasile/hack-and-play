@@ -14,6 +14,7 @@
   "dependencies": {
     "framer-motion": "12.23.24",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.468.0",
     "osmtogeojson": "^2.2.12",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
