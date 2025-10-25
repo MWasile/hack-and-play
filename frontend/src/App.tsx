@@ -13,6 +13,7 @@ import MapLegend from './components/MapLegend'
 import CommuteSummary from './components/CommuteSummary'
 import { motion } from 'framer-motion'
 import { themeColors } from './styles/theme'
+import Reveal from './components/Reveal'
 
 // Tiny geocoder using OpenStreetMap Nominatim (public demo; keep requests light)
 async function geocodeAddress(q: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -902,65 +903,67 @@ function App() {
     <div className="page">
       <TopBar />
       <main className="app">
-        <Sidebar
-          homeQuery={homeQuery}
-          onHomeQueryChange={setHomeQuery}
-          onHomeSelect={(s) => setHome(s)}
-          onHomeSearch={searchHome}
-          homeLabel={home?.label ?? null}
-          isHomeSearching={isHomeSearching}
+        <Reveal y={10} duration={0.45}>
+          <Sidebar
+            homeQuery={homeQuery}
+            onHomeQueryChange={setHomeQuery}
+            onHomeSelect={(s) => setHome(s)}
+            onHomeSearch={searchHome}
+            homeLabel={home?.label ?? null}
+            isHomeSearching={isHomeSearching}
 
-          workQuery={workQuery}
-          onWorkQueryChange={setWorkQuery}
-          onWorkSelect={(s) => setWork(s)}
-          onWorkSearch={searchWork}
-          isWorkSearching={isWorkSearching}
+            workQuery={workQuery}
+            onWorkQueryChange={setWorkQuery}
+            onWorkSelect={(s) => setWork(s)}
+            onWorkSearch={searchWork}
+            isWorkSearching={isWorkSearching}
 
-          frequentQuery={frequentQuery}
-          onFrequentQueryChange={setFrequentQuery}
-          onFrequentSelect={(s) => { setFrequent(s); setFrequentList((prev) => [...prev, s]) }}
-          onFrequentSearch={searchFrequent}
-          frequentLocations={frequentList}
-          onRemoveFrequent={(index) => setFrequentList((prev) => prev.filter((_, i) => i !== index))}
-          onReorderFrequent={reorderFrequent}
-          isFrequentSearching={isFrequentSearching}
+            frequentQuery={frequentQuery}
+            onFrequentQueryChange={setFrequentQuery}
+            onFrequentSelect={(s) => { setFrequent(s); setFrequentList((prev) => [...prev, s]) }}
+            onFrequentSearch={searchFrequent}
+            frequentLocations={frequentList}
+            onRemoveFrequent={(index) => setFrequentList((prev) => prev.filter((_, i) => i !== index))}
+            onReorderFrequent={reorderFrequent}
+            isFrequentSearching={isFrequentSearching}
 
-          analyzeCommute={analyzeCommute}
-          onAnalyzeCommuteChange={setAnalyzeCommute}
-          commuteMode={commuteMode}
-          onCommuteModeChange={setCommuteMode}
-          commuteMaxMins={commuteMaxMins}
-          onCommuteMaxMinsChange={setCommuteMaxMins}
+            analyzeCommute={analyzeCommute}
+            onAnalyzeCommuteChange={setAnalyzeCommute}
+            commuteMode={commuteMode}
+            onCommuteModeChange={setCommuteMode}
+            commuteMaxMins={commuteMaxMins}
+            onCommuteMaxMinsChange={setCommuteMaxMins}
 
-          considerChild={considerChild}
-          onConsiderChildChange={setConsiderChild}
-          childAge={childAge}
-          onChildAgeChange={setChildAge}
+            considerChild={considerChild}
+            onConsiderChildChange={setConsiderChild}
+            childAge={childAge}
+            onChildAgeChange={setChildAge}
 
-          hasPets={hasPets}
-          onHasPetsChange={setHasPets}
+            hasPets={hasPets}
+            onHasPetsChange={setHasPets}
 
-          showDistricts={showDistricts}
-          districtNames={districtNames}
-          selectedDistricts={selectedDistricts}
-          onToggleDistrict={(name, checked) => setSelectedDistricts((prev) => checked ? Array.from(new Set([...prev, name])) : prev.filter((n) => n !== name))}
+            showDistricts={showDistricts}
+            districtNames={districtNames}
+            selectedDistricts={selectedDistricts}
+            onToggleDistrict={(name, checked) => setSelectedDistricts((prev) => checked ? Array.from(new Set([...prev, name])) : prev.filter((n) => n !== name))}
 
-          streetQuery={streetQuery}
-          onStreetQueryChange={setStreetQuery}
-          highlightedStreets={highlightedStreets}
-          onAddStreet={async () => {
-            const name = streetQuery.trim()
-            if (!name) return
-            const data = await fetchStreetByNameInWarsaw(name)
-            if (data) setHighlightedStreets((prev) => [...prev.filter((s) => s.name.toLowerCase() !== name.toLowerCase()), { name, data }])
-          }}
-          onRemoveHighlightedStreet={(name) => setHighlightedStreets((prev) => prev.filter((s) => s.name !== name))}
-          onAddStreets={addStreetsByNames}
+            streetQuery={streetQuery}
+            onStreetQueryChange={setStreetQuery}
+            highlightedStreets={highlightedStreets}
+            onAddStreet={async () => {
+              const name = streetQuery.trim()
+              if (!name) return
+              const data = await fetchStreetByNameInWarsaw(name)
+              if (data) setHighlightedStreets((prev) => [...prev.filter((s) => s.name.toLowerCase() !== name.toLowerCase()), { name, data }])
+            }}
+            onRemoveHighlightedStreet={(name) => setHighlightedStreets((prev) => prev.filter((s) => s.name !== name))}
+            onAddStreets={addStreetsByNames}
 
-          commuteInfo={commuteInfo}
-          comparisons={comparisons}
-          comparisonsLoading={comparisonsLoading}
-        />
+            commuteInfo={commuteInfo}
+            comparisons={comparisons}
+            comparisonsLoading={comparisonsLoading}
+          />
+        </Reveal>
 
         <div className="mapPanel">
           {/** CTA: disable and show spinner until first computations finish */}
@@ -982,13 +985,15 @@ function App() {
             )
           })()}
 
-          <MapCanvas
-            center={mapCenterCandidate ?? undefined}
-            markers={markers}
-            circles={circles}
-            height="70vh"
-            geoJsonLayers={geoLayers}
-          />
+          <Reveal y={14} duration={0.5}>
+            <MapCanvas
+              center={mapCenterCandidate ?? undefined}
+              markers={markers}
+              circles={circles}
+              height="70vh"
+              geoJsonLayers={geoLayers}
+            />
+          </Reveal>
 
           <CommuteSummary
             commuteMode={commuteMode}
@@ -997,11 +1002,11 @@ function App() {
             commuteInfo={commuteInfo}
           />
 
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+          <div>
             <AddressCards home={home ?? undefined} work={work ?? undefined} frequentList={frequentList.length ? frequentList : undefined} frequent={frequent ?? undefined} />
-          </motion.div>
+          </div>
 
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
+          <div>
             <Suggestions
               suggestedDistricts={suggestedDistricts}
               selectedDistricts={selectedDistricts}
@@ -1013,9 +1018,9 @@ function App() {
               suggestedStreets={suggestedStreets}
               onAddStreetByName={addStreetByName}
             />
-          </motion.div>
+          </div>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.1 }}>
+          <div>
             <MapLegend
               disabled={!mapCenterCandidate}
               analysisRadius={analysisRadius}
@@ -1046,7 +1051,7 @@ function App() {
               showSafety={showSafety}
               onShowSafetyChange={setShowSafety}
             />
-          </motion.div>
+          </div>
         </div>
       </main>
       <Footer />

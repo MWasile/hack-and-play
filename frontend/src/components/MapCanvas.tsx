@@ -322,7 +322,7 @@ export default function MapCanvas({
       className={className}
       style={{
         height,
-        borderRadius: '25px',
+        borderRadius: '12px',
         // Use theme variables for a subtle, light purple outline
         border: '3px solid rgba(var(--primary-100-rgb), 0.8)',
         overflow: 'hidden',
