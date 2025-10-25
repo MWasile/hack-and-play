@@ -18,7 +18,7 @@
     position: relative;
     z-index: 5;
     width: 100%;
-    border-bottom: 1px solid #d29cff;
+    border-bottom: 1px solid #d29cff9e;
     background: rgba(32, 7, 71, 0.62);
     box-shadow: var(--elev-1);
     backdrop-filter: blur(12px) saturate(140%);
@@ -74,7 +74,7 @@
         transform: translateY(-160px) rotateY(0deg);
     }
     60% {
-        transform: translateY(6px) rotateY(0deg) scale(1.08);
+        transform: translateY(6px) rotateY(0deg) scale(1.20);
     }
     80% {
         transform: translateY(-3px) rotateY(0deg);

@@ -341,7 +341,7 @@ function App() {
               ...prev,
               { id: 'route', data: res.feature, style: { color: themeColors.accentWork(), weight: 4, opacity: 0.9 } },
             ])
-            setCommuteInfo(`Czas dojazdu do pracy: ~${Math.round(res.durationSec / 60)} min (${commuteMode}).`)
+            setCommuteInfo(`Czas dojazdu do pracy: ~${Math.round(res.durationSec / 60)} min.`)
           }
         }
       } finally {
