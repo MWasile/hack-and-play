@@ -16,7 +16,8 @@
     "leaflet": "^1.9.4",
     "osmtogeojson": "^2.2.12",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
