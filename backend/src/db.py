@@ -7,6 +7,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .config import get_settings
 import ssl
+import os
 
 settings = get_settings()
 
@@ -14,13 +15,18 @@ settings = get_settings()
 class Base(DeclarativeBase):
     __allow_unmapped__ = True
 
-ssl_ctx = ssl.create_default_context()
+# Enable SSL only if explicitly requested via environment (DB_SSL=1/true/yes)
+_USE_SSL = os.getenv("DB_SSL", "0").lower() in {"1", "true", "yes"}
+_connect_args = {}
+if _USE_SSL:
+    ssl_ctx = ssl.create_default_context()
+    _connect_args = {"ssl": ssl_ctx}
+
 engine = create_async_engine(
     settings.DB.url_async,
     echo=settings.DEBUG,
     pool_pre_ping=True,
-    connect_args={"ssl": ssl_ctx},
-
+    connect_args=_connect_args,
 )
 
 AsyncSessionLocal = async_sessionmaker(
