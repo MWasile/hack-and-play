@@ -56,7 +56,7 @@ body::before {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    filter: blur(8px) brightness(1.5) saturate(1.5) hue-rotate(15deg) grayscale(0.5);
+    filter: blur(4px) brightness(1.5) saturate(1.5) hue-rotate(15deg) grayscale(0.5);
     /* performance hints */
     will-change: filter;
     transform: translateZ(0);

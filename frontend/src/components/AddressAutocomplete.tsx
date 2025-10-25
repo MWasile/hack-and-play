@@ -35,9 +35,11 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
   useEffect(() => {
     let cancelled = false
     async function run() {
-      if (!debounced || debounced.trim().length < 3) {
+      const q = (debounced ?? '').trim()
+      if (!q || q.length < 3) {
         setItems([])
         setLoading(false)
+        setOpen(false) // close when query is too short
         return
       }
       setLoading(true)
@@ -45,15 +47,15 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
       url.searchParams.set('format', 'jsonv2')
       url.searchParams.set('addressdetails', '0')
       url.searchParams.set('limit', '5')
-      url.searchParams.set('q', debounced)
+      url.searchParams.set('q', q)
       try {
         const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } })
         if (!res.ok) return
         const data = await res.json() as Array<{ lat: string; lon: string; display_name: string }>
         if (!cancelled) {
           setItems(data.map(d => ({ lat: Number(d.lat), lng: Number(d.lon), label: d.display_name })))
-          setOpen(true)
           setActive(0)
+          // DO NOT auto-open here. Visibility is controlled by focus/open state.
         }
       } catch {}
       finally { if (!cancelled) setLoading(false) }
@@ -81,7 +83,7 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || items.length === 0) return
+    if (!(open && items.length > 0)) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setActive((a) => Math.min(items.length - 1, a + 1))
@@ -104,6 +106,7 @@ export default function AddressAutocomplete({ placeholder, value, onChange, onSe
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => (items.length > 0 || loading) && setOpen(true)}
+        onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
         autoFocus={autoFocus}
       />

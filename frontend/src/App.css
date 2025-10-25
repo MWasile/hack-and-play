@@ -18,7 +18,7 @@
     position: relative;
     z-index: 5;
     width: 100%;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid #d29cff;
     background: rgba(32, 7, 71, 0.62);
     box-shadow: var(--elev-1);
     backdrop-filter: blur(12px) saturate(140%);
@@ -51,13 +51,41 @@
     border-radius: 999px; /* round */
     overflow: hidden;
     box-shadow: 0 6px 18px rgba(var(--shadow-rgb), 0.1);
-    border: 4px solid var(--glass-border);
+    border: 4px solid rgba(138, 8, 246, 0.34);
 }
 
-.brand .brand-name {
-    font-weight: 900;
-    letter-spacing: 0.4px;
-    font-size: 1.25rem;
+/* Coin flip intro animation (topbar logo only) */
+.topbar .brand {
+    perspective: 900px;
+    -webkit-perspective: 900px;
+}
+
+.topbar .logo {
+    transform-origin: center;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+    animation: AndFlip 2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes AndFlip {
+    0% {
+        transform: translateY(-160px) rotateY(0deg);
+    }
+    60% {
+        transform: translateY(6px) rotateY(0deg) scale(1.08);
+    }
+    80% {
+        transform: translateY(-3px) rotateY(0deg);
+    }
+    100% {
+        transform: translateY(0) rotateY(1440deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .topbar .logo { animation: none !important; }
 }
 
 /* App layout */
@@ -104,7 +132,7 @@
 
 /* Cards inside sidebar for better hierarchy */
 .sidebar .card {
-    background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.28), rgba(var(--surface-1-rgb), 0.32));
+    background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.68), rgba(var(--surface-1-rgb), 0.62));
     border: 1px solid var(--glass-border);
     border-radius: 16px; /* 1rem */
     padding: 1rem;
@@ -118,17 +146,17 @@
 }
 
 .sidebar .section.card + .section.card {
-    margin-top: 1.25rem;
+    margin-top: 0.5rem;
 }
 
 .title {
-    margin: 0 0 0.75rem 0;
+    margin: 0 0 0.25rem 0;
     font-weight: 700;
     letter-spacing: 0.2px;
 }
 
 .section {
-    margin-top: 1.25rem;
+    margin-top: 0.5rem;
 }
 
 .stack > * + * {
@@ -192,7 +220,7 @@
 
 .hint {
     opacity: 0.9;
-    color: var(--text-muted);
+    color: #2e2e2e;
 }
 
 .hint.small {
@@ -227,7 +255,7 @@
 }
 
 .sidebar button {
-    padding: 0.7rem 1rem; /* + */
+    padding: 0.4rem 1rem; /* + */
     border-radius: 12px; /* + */
     border: 2px solid var(--glass-border); /* + */
     background: linear-gradient(180deg, rgba(var(--surface-3-rgb), 0.75), rgba(var(--surface-1-rgb), 0.65));
@@ -788,7 +816,7 @@
     max-height: 70vh;
     overflow: auto;
     padding: 0.75rem;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid var(--glass-border);
     background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.28), rgba(var(--surface-1-rgb), 0.35)), rgba(var(--surface-1-rgb), 0.75);
     color: var(--text-strong);
@@ -1034,7 +1062,7 @@
 
 .commute-card {
     position: relative;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid var(--glass-border);
     background: linear-gradient(180deg, rgba(var(--surface-2-rgb), 0.85), rgba(var(--surface-1-rgb), 0.75)), var(--glass-bg-1);
     box-shadow: var(--elev-2), inset 0 1px 0 rgba(var(--neutral-100-rgb), 0.15);
