@@ -1,11 +1,14 @@
 from __future__ import annotations
+import httpx
+import re
 
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, Path, Body
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 
 from src.db import get_db
 from src.models import (
@@ -33,6 +36,8 @@ from src.schemas.district import (
     LifeBalanceRead,
     SafetyRead,
 )
+from src.helpers import find_district_by_name
+
 
 router = APIRouter(prefix="/districts", tags=["districts"])
 
@@ -62,7 +67,6 @@ async def list_districts(
         .limit(size)
     )
     rows = (await db.execute(stmt)).scalars().all()
-    # FastAPI will serialize ORM instances using Pydantic (from_attributes=True)
     return DistrictListResponse(items=rows, total=total, page=page, size=size)
 
 
@@ -92,7 +96,6 @@ async def list_districts_detailed(
     return rows
 
 
-# --- Per-related model lists (paged) ---
 @router.get("/aggregates", response_model=List[DistrictAggregateRead])
 async def list_district_aggregates(
     page: int = Query(1, ge=1),
@@ -180,3 +183,92 @@ async def list_safety(
     rows = (await db.execute(stmt)).scalars().all()
     return rows
 
+
+@router.get("/{id}/detail", response_model=DistrictDetailRead)
+async def get_district_detail_by_id(
+    _id: int = Path(..., ge=1),
+    db: AsyncSession = Depends(get_db),
+) -> DistrictDetailRead:
+    stmt = (
+        select(District)
+        .where(District.id == _id)
+        .options(
+            selectinload(District.social_life),
+            selectinload(District.district_rhythm),
+            selectinload(District.green_places),
+            selectinload(District.digital_noise),
+            selectinload(District.social_availability),
+            selectinload(District.life_balance),
+            selectinload(District.safety),
+            selectinload(District.aggregates),
+        )
+    )
+    row = (await db.execute(stmt)).scalars().unique().one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="District not found")
+    return row
+
+
+@router.post("/by_address", response_model=DistrictBaseItem)
+async def get_district_by_address_post(
+    address: str = Body(
+        ...,
+        embed=True,
+        min_length=3,
+        description="Street and number, e.g. 'Marszałkowska 140'",
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> DistrictBaseItem:
+    params = {
+        "format": "jsonv2",
+        "addressdetails": 1,
+        "limit": 1,
+        "q": f"{address}, Warszawa, Polska",
+        "countrycodes": "pl",
+    }
+    headers = {"User-Agent": "warsaw-districts/1.0 (contact@example.com)"}
+    try:
+        async with httpx.AsyncClient(timeout=10.0, headers=headers) as client:
+            resp = await client.get("https://nominatim.openstreetmap.org/search", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Geocoding error: {e}") from e
+
+    if not data or "address" not in data[0]:
+        raise HTTPException(status_code=404, detail="Address not found in Warsaw")
+
+    addr = data[0]["address"]
+    district_name = (
+        addr.get("city_district")
+        or addr.get("suburb")
+        or addr.get("borough")
+        or addr.get("quarter")
+        or addr.get("neighbourhood")
+    )
+    if not district_name:
+        raise HTTPException(status_code=404, detail="District could not be determined")
+
+    row = await find_district_by_name(db, district_name)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"District '{district_name}' not found in database")
+
+    stmt = (
+        select(District)
+        .where(District.id == row.id)
+        .options(
+            selectinload(District.social_life),
+            selectinload(District.district_rhythm),
+            selectinload(District.green_places),
+            selectinload(District.digital_noise),
+            selectinload(District.social_availability),
+            selectinload(District.life_balance),
+            selectinload(District.safety),
+            selectinload(District.aggregates),
+        )
+    )
+    detailed = (await db.execute(stmt)).scalars().unique().one_or_none()
+    if detailed is None:
+        raise HTTPException(status_code=404, detail="District not found")
+
+    return detailed
